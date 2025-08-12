@@ -1,0 +1,322 @@
+import re
+import os
+from pathlib import Path
+import pdfplumber
+
+# Optional link extraction + OCR (used if available)
+try:
+    import fitz  # PyMuPDF
+    HAVE_PYMUPDF = True
+except Exception:
+    HAVE_PYMUPDF = False
+
+try:
+    from pdf2image import convert_from_path
+    import pytesseract
+    HAVE_OCR = True
+except Exception:
+    HAVE_OCR = False
+
+# =================== KNOBS ===================
+MAX_RECALL = True          # keep partials + loose matches
+USE_OCR_FALLBACK = True    # OCR if text is suspiciously short
+
+# =================== HELPERS ===================
+TRAILING = ").,;:!?]»”'\""
+DASHES = dict.fromkeys(map(ord, "\u2010\u2011\u2012\u2013\u2014\u2212"), "-")  # hyphen, NB-hyphen, fig dash, en, em, minus
+
+def clean(t: str) -> str:
+    if not t: return ""
+    t = t.replace("\u00ad", "").replace("\u200b", "")     # soft/zero-width hyphen
+    t = t.translate(DASHES)                               # normalize dashes
+    t = re.sub(r"-\s*\n\s*", "", t)                       # join hyphen-breaks
+    t = re.sub(r"[ \t]*\n[ \t]*", " ", t)                 # collapse newlines
+    return re.sub(r"\s{2,}", " ", t).strip()
+
+def norm_doi(s: str) -> str:
+    s = re.sub(r"^\s*doi:\s*", "", s, flags=re.I).strip()
+    if s.lower().startswith(("http://doi.org/","https://doi.org/","http://dx.doi.org/","https://dx.doi.org/")):
+        s = "https://doi.org/" + s.split("doi.org/", 1)[1]
+    elif s.lower().startswith("10."):
+        s = "https://doi.org/" + s
+    return s.lower().rstrip(TRAILING)
+
+def doi_url_to_bare(s: str) -> str:
+    s = s.strip().lower()
+    if s.startswith(("https://doi.org/","http://doi.org/","https://dx.doi.org/","http://dx.doi.org/")):
+        return s.split("doi.org/", 1)[1]
+    return s
+
+def to_article_id(doi_or_url: str) -> str:
+    bare = doi_url_to_bare(doi_or_url)
+    return bare.replace("/", "_", 1)
+
+# clamp DOI to safe core
+STRICT_DOI_CORE = re.compile(r"^https?://(?:dx\.)?doi\.org/(10\.\d{4,9}/[^()\[\]\s<>&?\"']+)", re.I)
+BARE_DOI_CORE   = re.compile(r"^(10\.\d{4,9}/[^()\[\]\s<>&?\"']+)", re.I)
+DOI_QS_RE       = re.compile(r"[?&]doi=(10\.\d{4,9}/[^&\s<>'\"]+)", re.I)
+SHORT_DOI_RE    = re.compile(r"https?://(?:dx\.)?doi\.org/10/[A-Za-z0-9]+", re.I)
+
+def clamp_doi(s: str):
+    s = re.sub(r"^\s*doi:\s*", "", s, flags=re.I).replace("\u00ad", "").replace("\u200b", "").strip()
+    m = STRICT_DOI_CORE.match(s) or BARE_DOI_CORE.match(s)
+    return ("https://doi.org/" + m.group(1)).lower() if m else None
+
+def canonize(dois):
+    out = set()
+    for x in dois:
+        c = clamp_doi(norm_doi(x))
+        if c: out.add(c)
+    return sorted(out)
+
+# =================== DATASET DOI PREFIXES (very broad) ===================
+CORE_DATASET_PREFIXES = [
+    # General / big repos
+    "10.5061/dryad","10.5281/zenodo","10.6084/m9.figshare","10.17632","10.4121",
+    "10.5063","10.17026","10.3334","10.25740","10.25817","10.48436",
+    # Agency / earth & env
+    "10.1594/pangaea","10.5066","10.5067","10.5069","10.7280","10.7289","10.25921","10.25923",
+    "10.22033",                 # ESGF
+    "10.24381",                 # Copernicus CDS
+    "10.17882",                 # Ifremer/SEANOE
+    "10.17862",                 # Cranfield
+    "10.18434",                 # NIST
+    # Imaging / life science data
+    "10.18112/openneuro","10.7937",      # OpenNeuro, TCIA
+    "10.6019",                           # PRIDE DOIs
+    "10.2210",                           # PDB DOIs
+    "10.5517",                           # CCDC
+    # Social science / archives
+    "10.3886","10.5255","10.5523","10.5256",   # ICPSR/UKDA/F1000Research data notes
+    # UK/EU institutional repos
+    "10.5285","10.5286","10.5284",      # UKCEH/BODC/ADS
+    "10.15125","10.15131","10.25377","10.25386","10.25387","10.21942","10.23642",
+    "10.25422",                         # e.g., azu.data
+    "10.13012",                         # Illinois b2share
+    "10.17863",                         # Cambridge
+    "10.6075",                          # UCSD Library
+    "10.7291",                          # Deep Blue Data / Michigan
+    "10.5291",                          # ILL Data Portal
+    # NOAA/NCEI/US DOE/etc.
+    "10.25921","10.25923","10.11578","10.25584","10.5062",
+    # PASTA/LTER appears as DOI
+    "10.6073",                          # pasta.lternet.org DOIs
+    # Marine / SEANOE is above; add SEANOE-alike
+    "10.17882",
+    # Rodare
+    "10.14278",                         # RODARE
+]
+
+DATASET_PREFIXES = tuple(sorted({p.lower() for p in CORE_DATASET_PREFIXES}))
+
+def is_dataset_doi(d: str) -> bool:
+    b = doi_url_to_bare(d)
+    return b.startswith(DATASET_PREFIXES)
+
+# =================== REGEX SETS ===================
+DOI_URL_RE    = re.compile(r"https?://(?:dx\.)?doi\.org/10\.\d{4,9}/[^\s<>\]\)\}]+", re.I)
+DOI_BARE_RE   = re.compile(r"(?<!doi\.org/)10\.\d{4,9}/[^\s<>\]\)\}]+", re.I)
+DOI_COLON_RE  = re.compile(r"\bdoi:\s*(10\.\d{4,9}/\S+)", re.I)
+
+# Non-DOI dataset URL domains (high recall)
+DATASET_URL_PATTERNS = [
+    r"https?://(?:www\.)?zenodo\.org/\S+",
+    r"https?://(?:www\.)?figshare\.com/\S+",
+    r"https?://(?:www\.)?osf\.io/\S+",
+    r"https?://(?:www\.)?data\.mendeley\.com/datasets/\S+",
+    r"https?://(?:www\.)?pangaea\.de/\S+",
+    r"https?://(?:www\.)?dataverse\.[^/\s]+/\S+",
+    r"https?://(?:www\.)?openicpsr\.org/\S+",
+    r"https?://(?:www\.)?icpsr\.umich\.edu/\S+",
+    r"https?://(?:www\.)?sciencebase\.gov/\S+",
+    r"https?://(?:www\.)?openneuro\.org/\S+",
+    r"https?://(?:www\.)?dryad\.org/\S+",
+    r"https?://(?:www\.)?data\.ceh\.ac\.uk/\S+",
+    r"https?://(?:www\.)?ebi\.ac\.uk/(?:pride|metabolights|ena)/\S+",
+    r"https?://(?:www\.)?massive\.ucsd\.edu/\S+",
+    r"https?://(?:www\.)?rcsb\.org/\S+",
+    r"https?://(?:www\.)?opentopography\.org/\S+",
+    r"https?://(?:www\.)?cancerimagingarchive\.net/\S+",
+    r"https?://hdl\.handle\.net/\S+",
+    r"https?://(?:www\.)?data\.gov/\S+",
+    r"https?://(?:www\.)?catalog\.data\.gov/\S+",
+    r"https?://(?:www\.)?hepdata\.net/\S+",
+    r"https?://(?:www\.)?vizier\.u-strasbg\.fr/\S+",
+    r"https?://(?:www\.)?rodare\.[^/\s]+/\S+",
+]
+DATASET_URL_RES = [re.compile(p, re.I) for p in DATASET_URL_PATTERNS]
+
+# Accessions — *very* broad set for recall
+ACCESSION_PATTERNS = [
+    # GEO
+    r"\bGSE\d+\b", r"\bGSM\d+\b", r"\bGDS\d+\b", r"\bGPL\d+\b",
+    # SRA/ENA/DDBJ
+    r"\bSRA\d+\b", r"\bSR[PRXRSZ]\d+\b", r"\bER[PRXRSZ]\d+\b", r"\bDR[PRXRSZ]\d+\b",
+    r"\bERZ\d+\b", r"\bSRZ\d+\b", r"\bDRZ\d+\b",
+    # BioProject / BioSample
+    r"\bPRJ[NEBD]A?\d+\b", r"\bSAM[NDCEA]\d+\b", r"\bSAMEA\d+\b",
+    # dbGaP
+    r"\bphs\d+\b", r"\bpht\d+\b", r"\bphv\d+\b",
+    # PRIDE / Proteomics / metabolomics
+    r"\bPXD\d+\b", r"\bMTBLS\d+\b", r"\bMSV\d{5,}\b", r"\bPASS\d{5,6}\b",
+    # ArrayExpress
+    r"\bE-(?:MEXP|GEOD|MTAB|ETAB)-\d+\b",
+    # Structure / EM
+    r"\bPDB\s?[A-Z0-9]{4}\b", r"\bEMPIAR-\d+\b", r"\bEMD-\d+\b", r"\bCCDC\s?\d{6,7}\b",
+    # EGA
+    r"\bEG[ADRSZ]\d+\b",
+    # Clinical trials
+    r"\bNCT\d{8}\b", r"\bISRCTN\d+\b",
+    # OpenNeuro ds-ids
+    r"\bds\d{6}\b",
+    # UniProt / CHEMBL / CHEBI
+    r"\b[A-NR-Z][0-9][A-Z0-9]{3}[0-9]\b", r"\bUniProt:[A-Z0-9\-]+\b",
+    r"\bCHEMBL\d+\b", r"\bCHEBI:\d+\b",
+    # Genome assemblies
+    r"\bGC[AF]_\d+\.\d+\b",
+    # BioStudies
+    r"\bS-[A-Z]{4}\d+\b",
+    # MG-RAST
+    r"\bmgm\d+\.\d+\b", r"\bmgp\d+\b",
+    # GISAID (strict and loose)
+    r"\bEPI[_\-]?ISL[_\-]?\d+\b", r"\bEPI\d{6,}\b",
+    # InterPro / Pfam
+    r"\bIPR\d+\b", r"\bPF\d{3,6}\b",
+    # Ensembl-style IDs (very broad; includes ENSBTAG, ENSOARG, ENSMMUT…)
+    r"\bENS[A-Z0-9_]*\d+\b",
+    # Cell lines (Cellosaurus)
+    r"\bCVCL_[A-Z0-9]+\b",
+    # BioModels
+    r"\bMODEL\d{10,}\b",
+    # GenBank-like two-letter + digits (e.g., BX119912, CP130886, KX000727)
+    r"\b[A-Z]{2}\d{5,6}\b",
+    # SCOP/structural classification-style dotted numbers (risk of noise; recall-focused)
+    r"\b\d+\.\d+(?:\.\d+){1,3}\b",
+]
+ACCESSION_RES = [re.compile(p, re.I) for p in ACCESSION_PATTERNS]
+
+# =================== IO ===================
+def read_text(pdf_path: str) -> str:
+    txt = ""
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            txt = " ".join((p.extract_text() or "") for p in pdf.pages)
+    except Exception:
+        txt = ""
+    txt = clean(txt)
+    if USE_OCR_FALLBACK and HAVE_OCR and len(txt) < 400:
+        try:
+            images = convert_from_path(pdf_path, dpi=300)
+            ocr_txt = []
+            for img in images[:10]:   # cap OCR pages for runtime
+                ocr_txt.append(pytesseract.image_to_string(img))
+            txt_ocr = clean(" ".join(ocr_txt))
+            if len(txt_ocr) > len(txt):
+                txt = txt_ocr
+        except Exception:
+            pass
+    return txt
+
+def link_uris(pdf_path: str):
+    out = []
+    # pdfplumber annotations
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            for p in pdf.pages:
+                for h in getattr(p, "hyperlinks", []) or []:
+                    u = h.get("uri") or h.get("target")
+                    if u: out.append(u)
+    except Exception:
+        pass
+    # PyMuPDF annotations
+    if HAVE_PYMUPDF:
+        try:
+            doc = fitz.open(pdf_path)
+            for pg in doc:
+                for ln in pg.get_links():
+                    u = ln.get("uri")
+                    if u: out.append(u)
+        except Exception:
+            pass
+    return out
+
+# =================== EXTRACTION ===================
+def extract_all(text: str, uris: list):
+    raw = []
+    raw += DOI_URL_RE.findall(text)
+    raw += DOI_BARE_RE.findall(text)
+    raw += DOI_COLON_RE.findall(text)
+    for u in re.findall(r"https?://\S+", text, flags=re.I):
+        raw += DOI_QS_RE.findall(u)
+
+    short_dois = SHORT_DOI_RE.findall(text)
+
+    if uris:
+        ublob = " ".join(uris)
+        raw += DOI_URL_RE.findall(ublob) + DOI_BARE_RE.findall(ublob) + DOI_COLON_RE.findall(ublob)
+        raw += DOI_QS_RE.findall(ublob)
+        short_dois += SHORT_DOI_RE.findall(ublob)
+
+    dois_canon = canonize({norm_doi(x) for x in raw})
+    if MAX_RECALL:
+        partials = {norm_doi(x) for x in raw if not clamp_doi(norm_doi(x))}
+        all_dois = sorted(set(dois_canon).union(partials))
+    else:
+        all_dois = dois_canon
+
+    dataset_urls = sorted({u for rx in DATASET_URL_RES for u in rx.findall(text)})
+    accessions   = sorted({a for rx in ACCESSION_RES    for a in rx.findall(text)})
+    short_dois   = sorted(set(short_dois))
+    return all_dois, dataset_urls, accessions, short_dois
+
+# =================== RUN (FOLDER) ===================
+if __name__ == "__main__":
+    folder_path = "/Users/gideontesfai/Downloads/New Folder With Items"   # <-- set this
+    pdf_files = sorted(Path(folder_path).rglob("*.pdf"))  # includes subfolders
+
+    for pdf_path in pdf_files:
+        print(f"\n=== {pdf_path.name} ===")
+        text = read_text(str(pdf_path))
+        uris = link_uris(str(pdf_path))
+        all_dois, dataset_urls, accessions, short_dois = extract_all(text, uris)
+
+        dataset_dois = sorted(d for d in all_dois if d.startswith("https://doi.org/") and is_dataset_doi(d))
+        article_dois = sorted(d for d in all_dois if d.startswith("https://doi.org/") and not is_dataset_doi(d))
+
+        print("\nALL DOIs (normalized, ultra-recall):")
+        for d in all_dois: print(d)
+
+        if short_dois:
+            print("\nShort DOIs (unclassified):")
+            for s in short_dois: print(s)
+
+        print("\nLikely DATASET DOIs:")
+        for d in dataset_dois: print(d)
+
+        print("\nLikely ARTICLE DOIs:")
+        for d in article_dois: print(d)
+
+        print("\nDataset URLs (non-DOI):")
+        for u in dataset_urls: print(u)
+
+        print("\nAccessions:")
+        for a in accessions: print(a)
+
+        # Choose one article + one dataset for convenience (still recall-friendly)
+        chosen_article = None
+        m = re.match(r"(10\.\d{4,9})_(.+?)\.pdf$", pdf_path.name, re.I)
+        expected = f"{m.group(1)}/{m.group(2)}".lower() if m else None
+        if expected:
+            for d in article_dois:
+                if doi_url_to_bare(d) == expected:
+                    chosen_article = d; break
+        if not chosen_article and article_dois:
+            chosen_article = article_dois[0]
+
+        chosen_dataset = dataset_dois[0] if dataset_dois else (dataset_urls[0] if dataset_urls else None)
+
+        print("\narticle_id:")
+        print(to_article_id(chosen_article) if chosen_article else "<not found>")
+        print("dataset_id:")
+        print(chosen_dataset if chosen_dataset else "<not found>")
+    
