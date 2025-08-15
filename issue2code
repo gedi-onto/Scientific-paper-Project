@@ -1,0 +1,568 @@
+# JUPYTER CELL — Hybrid v2 tagging + Data Availability extraction (pure semantic, no DA keywords)
+# -----------------------------------------------------------------------------------------------
+# Inputs:
+#   - extracted_identifiers.csv (columns: pdf, kind, value, stage)
+#   - PDFs under PDF_ROOT
+#   - local Ollama model (MODEL_NAME), e.g., "gpt-oss"
+#
+# Outputs:
+#   - mentions_detailed_hybrid_v2.csv
+#   - mentions_grouped_hybrid_v2.csv
+#   - da_sections.csv (best DA paragraph per PDF)
+#   - da_sections.jsonl (all DA-positive paragraphs)
+#   - mentions_with_da_flag_v2.csv
+
+import os, re, json, unicodedata
+from dataclasses import dataclass
+from pathlib import Path
+from typing import List, Tuple, Dict, Optional
+import pandas as pd
+import pdfplumber
+import ollama
+
+# ---------------- CONFIG ----------------
+CSV_IN       = "extracted_identifiers.csv"
+PDF_ROOT     = "/home/gideon/Downloads/newfolder"  # change if needed
+MODEL_NAME   = "gpt-oss"                           # Ollama model name
+
+OUT_DETAILED = "mentions_detailed_hybrid_v2.csv"
+OUT_GROUPED  = "mentions_grouped_hybrid_v2.csv"
+DA_JSONL_OUT = "da_sections.jsonl"                 # all DA-positive paragraphs
+DA_CSV_OUT   = "da_sections.csv"                   # best DA paragraph per PDF
+OUT_DETAILED_WITH_DA = "mentions_with_da_flag_v2.csv"
+
+# Optional: cap paragraphs scored per PDF (semantic DA)
+MAX_PARAS_PER_PDF = 600  # set None to score all; keep reasonable to save tokens
+
+# ---------------- TEXT NORMALIZATION ----------------
+INVISIBLE = [
+    "\u200b","\u200c","\u200d","\ufeff","\u2060","\u00ad",
+    "\u2000","\u2001","\u2002","\u2003","\u2004","\u2005","\u2006","\u2007","\u2008","\u2009","\u200a",
+    "\u202f","\u205f","\u3000"
+]
+DASHES   = dict.fromkeys(map(ord, "\u2010\u2011\u2012\u2013\u2014\u2212"), "-")
+PUNCT_MAP = {
+    ord("\u2024"): ".", ord("\u2027"): ".", ord("\u2219"): ".", ord("\u22C5"): ".", ord("\u30FB"): ".",
+    ord("\uFF0E"): ".", ord("\u2044"): "/", ord("\u2215"): "/", ord("\uFF0F"): "/",
+    ord("\uFF1A"): ":", ord("\u2212"): "-"
+}
+TRAILING = ").,;:!?]»”'\""
+
+def norm_text_strong(t: str) -> str:
+    if not t: return ""
+    t = unicodedata.normalize("NFKC", t)
+    for ch in INVISIBLE: t = t.replace(ch, "")
+    t = t.replace("\u00a0"," ").translate(DASHES).translate(PUNCT_MAP)
+    t = re.sub(r"-\s*\n\s*", "", t)           # undo hyphenation at line breaks
+    t = re.sub(r"\s*([./:_-])\s*", r"\1", t)  # collapse around punct
+    t = re.sub(r"[ \t]*\n[ \t]*", "\n", t)    # normalize newlines
+    return t
+
+def read_pdf_text_with_pages_and_lines(pdf_path: str):
+    pages, lines, offsets = [], [], []
+    cur = 0
+    with pdfplumber.open(pdf_path) as pdf:
+        for p in pdf.pages:
+            txt = norm_text_strong(p.extract_text() or "")
+            pages.append(txt)
+            for ln in txt.splitlines():
+                lines.append(ln)
+                offsets.append(cur)
+                cur += len(ln) + 1
+    full = norm_text_strong("\n".join(pages))
+    return full, pages, lines, offsets
+
+# ---------------- VALUE PRE-CLEAN (for matching & prompt hygiene) ----------------
+VALUE_TAIL_PATTERNS = [
+    r"\|www\.[^\s]+$",
+    r"\.http[s]?://[^\s]+$",
+    r"\.accessed[^\s]{0,40}$",
+    r"\.p\.\d+[-\d]*$",
+    r"\.supplementary[^\s]*$",
+]
+VALUE_TAIL_RE = [re.compile(p, re.I) for p in VALUE_TAIL_PATTERNS]
+def clean_value_for_prompt(v: str) -> str:
+    s = (v or "").strip()
+    for rx in VALUE_TAIL_RE:
+        s = rx.sub("", s)
+    return s.rstrip(TRAILING)
+
+# ---------------- TOLERANT MATCHING ----------------
+def normalize_bare_doi(s: str) -> str:
+    s = (s or "").strip().lower()
+    if s.startswith(("http://doi.org/","https://doi.org/","http://dx.doi.org/","https://dx.doi.org/")):
+        s = s.split("doi.org/", 1)[1]
+    if s.startswith("doi:"): s = s[4:]
+    return s.rstrip(TRAILING)
+
+def build_fuzzy_doi_regex(bare: str) -> re.Pattern:
+    sep = r"[\s\u200b\u200c\u200d\u2060\u00ad]*"
+    pat = (
+        re.escape(bare)
+        .replace(r"\.", sep + r"\." + sep)
+        .replace(r"\/", sep + r"\/" + sep)
+        .replace(r"\:", sep + r"\:" + sep)
+    )
+    pat = r"(?:doi" + sep + r"\s*" + sep + r"\:\s*" + sep + r")?" + pat
+    return re.compile(pat, re.I|re.S)
+
+def build_fuzzy_literal_regex(text: str) -> re.Pattern:
+    sep = r"[\s\u200b\u200c\u200d\u2060\u00ad]*"
+    esc = re.escape(text.strip())
+    esc = (esc.replace(r"\.", sep + r"\." + sep)
+               .replace(r"\/", sep + r"\/" + sep)
+               .replace(r"\-", sep + r"\-" + sep)
+               .replace(r"\:", sep + r"\:" + sep))
+    return re.compile(esc, re.I|re.S)
+
+def find_mentions_fuzzy(full_text: str, value: str) -> List[Tuple[int,int]]:
+    spans = set()
+    v_raw = (value or "").strip()
+    if not v_raw: return []
+    v = clean_value_for_prompt(v_raw)
+
+    # exact
+    for m in re.finditer(re.escape(v), full_text, flags=re.I):
+        spans.add((m.start(), m.end()))
+
+    # DOI style
+    v_low = v.lower()
+    looks_like_doi = False
+    if v_low.startswith(("https://doi.org/","http://doi.org/","https://dx.doi.org/","http://dx.doi.org/","doi:","10.")):
+        bare = normalize_bare_doi(v_low if not v_low.startswith("10.") else v_low)
+        if bare.startswith("10."):
+            looks_like_doi = True
+            rx = build_fuzzy_doi_regex(bare)
+            for m in rx.finditer(full_text):
+                spans.add((m.start(), m.end()))
+    # literal fuzzy
+    if not looks_like_doi:
+        rx2 = build_fuzzy_literal_regex(v)
+        for m in rx2.finditer(full_text):
+            spans.add((m.start(), m.end()))
+
+    # merge near duplicates
+    spans = sorted(spans)
+    merged = []
+    for s,e in spans:
+        if merged and s - merged[-1][1] <= 8:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], e))
+        else:
+            merged.append((s,e))
+    return merged
+
+def context_window(full_text: str, start: int, end: int, max_chars: int = 900) -> str:
+    # sentence-aware expansion + nearby header-like lines handled elsewhere
+    L = max_chars
+    a = max(0, int(start) - L//2)
+    b = min(len(full_text), int(end) + L//2)
+    a = max(0, b - L); b = min(len(full_text), a + L)
+    # light sentence snapping
+    left = full_text.rfind('.', 0, a)
+    if left != -1 and a - left < 160: a = left + 1
+    right = full_text.find('.', b)
+    if right != -1 and right - b < 160: b = right + 1
+    return full_text[a:b]
+
+def nearest_header_lines(lines: List[str], offsets: List[int], char_idx: int, radius=3) -> str:
+    import bisect
+    i = bisect.bisect_right(offsets, char_idx) - 1
+    i = max(0, min(i, len(lines)-1))
+    rng = range(max(0, i-radius), min(len(lines), i+radius+1))
+    cands = []
+    for k in rng:
+        s = lines[k].strip()
+        if re.match(r"^(figure|fig\.)\s*\d+[\.:]", s, re.I) \
+           or re.match(r"^table\s*\d+[\.:]", s, re.I) \
+           or re.match(r"^(references|bibliography)\s*:?\s*$", s, re.I) \
+           or re.match(r"^abstract\s*:?\s*$", s, re.I) \
+           or re.match(r"^conclusions?\s*:?\s*$", s, re.I) \
+           or re.match(r"^(introduction|methods?|materials and methods|results|discussion)\s*:?\s*$", s, re.I):
+            cands.append(s)
+    return " | ".join(cands[:2])
+
+# ---------------- LIGHT RULE SECTIONS ----------------
+SEC_PATTERNS = [
+    ("abstract",       r"^\s*(abstract|summary)\s*:?\s*$"),
+    ("introduction",   r"^\s*introduction\s*:?\s*$"),
+    ("background",     r"^\s*background\s*:?\s*$"),
+    ("methods",        r"^\s*(methods|materials\s+and\s+methods|methodology|experimental\s+procedures)\s*:?\s*$"),
+    ("results",        r"^\s*results\s*:?\s*$"),
+    ("discussion",     r"^\s*(discussion|results\s+and\s+discussion)\s*:?\s*$"),
+    ("conclusion",     r"^\s*(conclusion|conclusions)\s*:?\s*$"),
+    ("acknowledgments",r"^\s*acknowledg(e)?ments?\s*:?\s*$"),
+    ("funding",        r"^\s*funding\s*:?\s*$"),
+    ("ethics",         r"^\s*(ethics\s+statement|ethical\s+approval)\s*:?\s*$"),
+    ("conflicts",      r"^\s*(conflict[s]?\s+of\s+interest|competing\s+interests?)\s*:?\s*$"),
+    ("supplementary",  r"^\s*(supplementary\s+(information|materials?)|appendix|appendices)\s*:?\s*$"),
+    ("references",     r"^\s*(references|bibliography)\s*:?\s*$"),
+]
+SEC_REGEX = [(label, re.compile(pat, re.I|re.M)) for label, pat in SEC_PATTERNS]
+
+@dataclass
+class SectionSpan:
+    label: str
+    header_text: str
+    start: int
+    end: int
+
+def find_sections(full_text: str) -> List[SectionSpan]:
+    lines = full_text.splitlines()
+    idx = 0
+    line_starts = []
+    for ln in lines:
+        line_starts.append(idx)
+        idx += len(ln) + 1
+    headers = []
+    for i, ln in enumerate(lines):
+        s = ln.strip()
+        if not s: continue
+        for label, rgx in SEC_REGEX:
+            if rgx.match(s):
+                headers.append((line_starts[i], label, s))
+                break
+        if re.match(r"^\s*(figure|fig\.)\s*\d+[\.:]", s, re.I):
+            headers.append((line_starts[i], "figure_caption", s))
+        if re.match(r"^\s*table\s*\d+[\.:]", s, re.I):
+            headers.append((line_starts[i], "table_caption", s))
+    headers = sorted(set(headers), key=lambda x: x[0])
+    if not headers:
+        return [SectionSpan("unknown","",0,len(full_text))]
+    spans = []
+    for k,(pos,label,hdr) in enumerate(headers):
+        end = len(full_text) if k==len(headers)-1 else headers[k+1][0]
+        spans.append(SectionSpan(label,hdr,pos,end))
+    return spans
+
+def locate_span(spans: List[SectionSpan], char_index: int) -> SectionSpan:
+    for sp in spans:
+        if sp.start <= char_index < sp.end:
+            return sp
+    return SectionSpan("unknown","",0,0)
+
+# ---------------- PRIORS ----------------
+def looks_like_footer(snippet: str) -> bool:
+    s = snippet.lower()
+    return ("www.nature.com" in s or "rights reserved" in s or "copyright" in s) and len(snippet) < 500
+
+def looks_like_inline_citation(snippet: str) -> bool:
+    return bool(re.search(r"\b\(\s*[A-Z][A-Za-z\-]+(?:\s+et\s+al\.)?,\s*\d{4}\s*\)", snippet)) or \
+           bool(re.search(r"\bdoi:\s*10\.", snippet, re.I))
+
+def looks_like_front_matter(full_text: str, start_idx: int) -> bool:
+    return start_idx < max(6000, int(len(full_text)*0.1))
+
+# ---------------- LLM (expanded label set + second pass) ----------------
+LABELS = [
+    "title","abstract","introduction","background","methods","results","discussion","conclusion",
+    "figure_caption","table_caption","acknowledgments","funding","ethics","conflicts",
+    "supplementary","references","inline_citation","front_matter","header_footer","other"
+]
+FEWSHOT_CLASS = """Choose ONE label for the snippet’s role in a scientific paper:
+- title, abstract, introduction, background, methods, results, discussion, conclusion,
+- figure_caption, table_caption,
+- acknowledgments, funding, ethics, conflicts, supplementary, references,
+- inline_citation, front_matter, header_footer,
+- other (only if none fit).
+Prefer "references" for citation-list formatting; "figure_caption"/"table_caption" for captions beginning with 'Figure X.' or 'Table Y.'.
+Return STRICT JSON: {"label":"<one-of-allowed>"}.
+"""
+
+def safe_json_loads(s: str):
+    try:
+        return json.loads(s)
+    except Exception:
+        m = re.search(r"\{.*\}", s, flags=re.S)
+        if m:
+            return json.loads(m.group(0))
+        raise
+
+def llm_label_context(context: str, model: str) -> str:
+    system = ("You label the snippet by its section type. "
+              "Allowed: " + ", ".join(LABELS) + ". Return STRICT JSON only.")
+    user = f"{FEWSHOT_CLASS}\nSnippet:\n---\n{context[:2000]}\n---"
+    try:
+        res = ollama.chat(
+            model=model,
+            messages=[{"role":"system","content":system},
+                      {"role":"user","content":user}],
+            options={"temperature":0.0}
+        )
+        obj = safe_json_loads(res["message"]["content"])
+        lab = (obj.get("label") or "").strip().lower()
+        return lab if lab in LABELS else "other"
+    except Exception:
+        return "other"
+
+STRONG_RULE = {"references","figure_caption","table_caption","title"}
+
+# ---------------- Pure semantic DA extractor (no DA keywords) ----------------
+DA_SYSTEM = (
+    "You decide if a paragraph from a scientific article is a Data Availability statement. "
+    "Judge by meaning only: it tells where the study's underlying data (and/or code) live "
+    "and how to access them (repositories/DOIs/accessions/links or 'upon request'). "
+    "Boilerplate footers, general references, and funding/ethics are NOT DA. "
+    'Return STRICT JSON: {"is_da": true|false, "confidence": 0.0-1.0}.'
+)
+
+def llm_is_da(paragraph: str) -> Tuple[bool, float]:
+    p = paragraph.strip()
+    if len(p) < 40:
+        return False, 0.0
+    if len(p) > 3000:
+        p = p[:3000]
+    user = "Paragraph:\n---\n" + p + "\n---"
+    try:
+        res = ollama.chat(
+            model=MODEL_NAME,
+            messages=[{"role":"system","content":DA_SYSTEM},
+                      {"role":"user","content":user}],
+            options={"temperature":0.0}
+        )
+        obj = safe_json_loads(res["message"]["content"])
+        return bool(obj.get("is_da", False)), float(obj.get("confidence", 0.0))
+    except Exception:
+        return False, 0.0
+
+# ---------------- LOAD INPUT ----------------
+assert Path(CSV_IN).exists(), f"CSV not found: {CSV_IN}"
+df_in = pd.read_csv(CSV_IN)
+assert {"pdf","kind","value","stage"}.issubset(df_in.columns), "CSV must have columns: pdf, kind, value, stage"
+df_in["pdf"] = df_in["pdf"].astype(str).str.replace("\ufeff","", regex=False).str.strip()
+
+pdf_on_disk = {p.name for p in Path(PDF_ROOT).glob("*.pdf")}
+missing = sorted({name for name in df_in["pdf"].unique() if name not in pdf_on_disk})
+if missing:
+    print(f"⚠️ Missing {len(missing)} PDFs referenced in CSV. Example:", missing[:5])
+else:
+    print("All referenced PDFs are present. ✅")
+
+# ---------------- MAIN ----------------
+detailed_rows = []
+da_all_records = []  # all DA-positive paragraphs (for JSONL)
+da_best_rows = []    # best DA paragraph per PDF (for CSV)
+
+for pdf_name in df_in["pdf"].unique():
+    pdf_path = Path(PDF_ROOT) / pdf_name
+    if not pdf_path.exists():
+        # keep traceable rows even if missing
+        for _, r in df_in[df_in["pdf"]==pdf_name].iterrows():
+            detailed_rows.append({
+                "pdf": pdf_name, "kind": r["kind"], "value": r["value"], "stage": r["stage"],
+                "found": "false","match_start":"","match_end":"",
+                "section_label_rule":"","section_header_rule":"",
+                "section_label_llm":"","section_label_hybrid":"","hybrid_strategy":"pdf_missing",
+                "page_guess":"","context_excerpt":""
+            })
+        continue
+
+    # Load once per PDF
+    full, pages, lines, offsets = read_pdf_text_with_pages_and_lines(str(pdf_path))
+    if not full.strip():
+        for _, r in df_in[df_in["pdf"]==pdf_name].iterrows():
+            detailed_rows.append({
+                "pdf": pdf_name, "kind": r["kind"], "value": r["value"], "stage": r["stage"],
+                "found": "false","match_start":"","match_end":"",
+                "section_label_rule":"","section_header_rule":"",
+                "section_label_llm":"","section_label_hybrid":"","hybrid_strategy":"no_text",
+                "page_guess":"","context_excerpt":""
+            })
+        continue
+
+    # page offsets for page guess
+    page_offsets = []
+    cum = 0
+    for ptxt in pages:
+        page_offsets.append(cum)
+        cum += len(ptxt) + 1
+
+    def guess_page(idx):
+        lo, hi = 0, len(page_offsets)-1
+        while lo <= hi:
+            mid = (lo+hi)//2
+            if idx < page_offsets[mid]:
+                hi = mid - 1
+            else:
+                lo = mid + 1
+        return max(1, hi+1)
+
+    spans = find_sections(full)
+
+    # ---------- Semantic DA extraction (paragraphize → LLM) ----------
+    raw_paras = re.split(r"\n\s*\n", full)
+    paras = [p.strip() for p in raw_paras if p.strip()]
+
+    # lightweight candidate throttling (NOT keyword-based)
+    # prefer paras that contain at least one URL/DOI/accession OR are in the back-matter range; otherwise sample head/tail
+    DOI_RE = re.compile(r"\b10\.\d{3,9}/\S+\b", re.I)
+    URL_RE = re.compile(r"https?://\S+", re.I)
+    ACC_RE = re.compile(r"\b(?:PRJ[NEBD]A?\d+|GSE\d+|PXD\d+|MTBLS\d+|EPI[_-]?ISL[_-]?\d+|NCT\d{8}|TCIA|Zenodo|Dryad|Figshare|PANGAEA)\b", re.I)
+
+    scored_idxs = list(range(len(paras)))
+    if MAX_PARAS_PER_PDF and len(paras) > MAX_PARAS_PER_PDF:
+        # build a cheap heuristic score
+        scores = []
+        total_len = len(full)
+        for i, p in enumerate(paras):
+            start = full.find(p)
+            pos_score = 1.0 if start > total_len*0.6 else 0.0  # back matter gets a small boost
+            sig_score = 0.0
+            if DOI_RE.search(p): sig_score += 1.0
+            if URL_RE.search(p): sig_score += 0.6
+            if ACC_RE.search(p): sig_score += 0.8
+            length = len(p)
+            len_ok = 0.4 if 60 <= length <= 1800 else 0.0
+            scores.append((sig_score + pos_score + len_ok, i))
+        scores.sort(reverse=True)
+        keep = [i for _, i in scores[:MAX_PARAS_PER_PDF//2]]
+        # also keep a few from beginning & end to hedge
+        head = list(range(min(40, len(paras))))
+        tail = list(range(max(0, len(paras)-60), len(paras)))
+        scored_idxs = sorted(set(keep + head + tail))
+
+    local_hits = []
+    for i in scored_idxs:
+        p = paras[i]
+        start = full.find(p)
+        if start < 0: 
+            continue
+        is_da, conf = llm_is_da(p)
+        if is_da:
+            end = start + len(p)
+            rec = {
+                "pdf": pdf_name,
+                "start": start, "end": end,
+                "page_guess_start": guess_page(start),
+                "page_guess_end": guess_page(end),
+                "confidence": conf,
+                "text": p
+            }
+            local_hits.append(rec)
+            da_all_records.append({"method":"semantic_llm", **rec})
+
+    if local_hits:
+        # best = highest confidence, then longest
+        best = sorted(local_hits, key=lambda r: (r["confidence"], r["end"]-r["start"]), reverse=True)[0]
+        da_best_rows.append({"method":"semantic_llm", **best})
+
+    # ---------- Per-value mentions (hybrid) ----------
+    for _, r in df_in[df_in["pdf"]==pdf_name].iterrows():
+        val = str(r["value"])
+        matches = find_mentions_fuzzy(full, val)
+        if not matches:
+            detailed_rows.append({
+                "pdf": pdf_name, "kind": r["kind"], "value": r["value"], "stage": r["stage"],
+                "found": "false","match_start":"","match_end":"",
+                "section_label_rule":"","section_header_rule":"",
+                "section_label_llm":"","section_label_hybrid":"","hybrid_strategy":"no_match",
+                "page_guess":"","context_excerpt":""
+            })
+            continue
+
+        for (s_idx, e_idx) in matches:
+            # rule label from sections
+            sp = locate_span(spans, s_idx)
+            rule_label  = (sp.label or "unknown").lower()
+            rule_header = sp.header_text
+
+            # richer context
+            ctx = context_window(full, s_idx, e_idx, max_chars=900)
+            hdr_hint = nearest_header_lines(lines, offsets, s_idx, radius=3)
+            ctx_for_llm = (hdr_hint + "\n" + ctx).strip() if hdr_hint else ctx
+
+            # priors
+            prior = None
+            if looks_like_footer(ctx): prior = "header_footer"
+            elif looks_like_inline_citation(ctx): prior = "inline_citation"
+            elif looks_like_front_matter(full, s_idx): prior = "front_matter"
+
+            # first-pass LLM
+            llm_label = llm_label_context(ctx_for_llm, MODEL_NAME)
+
+            # second-pass LLM if weak
+            weak = (rule_label in {"unknown","other"} and llm_label in {"other","unknown"})
+            if weak and prior:
+                nudge = f"(Hint: this may be {prior}.)\n"
+                llm_label2 = llm_label_context(nudge + ctx_for_llm, MODEL_NAME)
+                if llm_label2 not in {"other","unknown"}:
+                    llm_label = llm_label2
+
+            # hybrid decision
+            if rule_label in STRONG_RULE:
+                final_label = rule_label
+                strategy = "rule_strong"
+            else:
+                final_label = llm_label if llm_label not in {"other","unknown"} else (prior or rule_label or "other")
+                strategy = "llm_override" if final_label == llm_label else ("prior_fallback" if final_label==prior else "rule_fallback")
+
+            detailed_rows.append({
+                "pdf": pdf_name, "kind": r["kind"], "value": r["value"], "stage": r["stage"],
+                "found": "true","match_start": s_idx,"match_end": e_idx,
+                "section_label_rule": rule_label, "section_header_rule": rule_header,
+                "section_label_llm": llm_label, "section_label_hybrid": final_label,
+                "hybrid_strategy": strategy, "page_guess": guess_page(s_idx),
+                "context_excerpt": context_window(full, s_idx, e_idx, max_chars=200)
+            })
+
+# ---------------- WRITE MENTION OUTPUTS ----------------
+df_det = pd.DataFrame(detailed_rows)
+df_det.to_csv(OUT_DETAILED, index=False, encoding="utf-8")
+print(f"✔ Wrote {OUT_DETAILED}")
+
+if not df_det.empty:
+    grp = (
+        df_det[df_det["found"].astype(str).str.lower()=="true"]
+        .groupby(["pdf","value","section_label_hybrid"], dropna=False)
+        .size()
+        .reset_index(name="count")
+        .sort_values(["pdf","count"], ascending=[True, False])
+    )
+else:
+    grp = pd.DataFrame(columns=["pdf","value","section_label_hybrid","count"])
+grp.to_csv(OUT_GROUPED, index=False, encoding="utf-8")
+print(f"✔ Wrote {OUT_GROUPED}")
+
+# ---------------- WRITE DA OUTPUTS ----------------
+# All positives -> JSONL
+with open(DA_JSONL_OUT, "w", encoding="utf-8") as f:
+    for r in da_all_records:
+        f.write(json.dumps(r, ensure_ascii=False) + "\n")
+print(f"✔ Wrote {DA_JSONL_OUT} (all DA-positive paragraphs)")
+
+# Best per PDF -> CSV
+if da_best_rows:
+    df_da_best = pd.DataFrame(da_best_rows, columns=[
+        "pdf","method","start","end","page_guess_start","page_guess_end","confidence","text"
+    ])
+    # sort for readability
+    df_da_best = df_da_best.sort_values(["pdf","confidence"], ascending=[True, False])
+else:
+    df_da_best = pd.DataFrame(columns=["pdf","method","start","end","page_guess_start","page_guess_end","confidence","text"])
+df_da_best.to_csv(DA_CSV_OUT, index=False, encoding="utf-8")
+print(f"✔ Wrote {DA_CSV_OUT} (best DA paragraph per PDF)")
+
+# ---------------- FLAG MENTIONS INSIDE ANY DA SPAN ----------------
+if not df_da_best.empty or len(da_all_records)>0:
+    # Use ALL positive spans when flagging mentions
+    all_spans_by_pdf = {}
+    for r in da_all_records:
+        all_spans_by_pdf.setdefault(r["pdf"], []).append((int(r["start"]), int(r["end"])))
+
+    def in_any_da(pdf, s, e):
+        if pd.isna(s) or pd.isna(e): return False
+        s, e = int(s), int(e)
+        for (S,E) in all_spans_by_pdf.get(pdf, []):
+            if s < E and e > S:
+                return True
+        return False
+
+    df_det["da_span"] = df_det.apply(lambda x: in_any_da(str(x["pdf"]), x.get("match_start"), x.get("match_end")), axis=1)
+    df_det.to_csv(OUT_DETAILED_WITH_DA, index=False, encoding="utf-8")
+    print(f"✔ Wrote {OUT_DETAILED_WITH_DA}")
+
+# Quick peek
+try:
+    display(df_det.head(12))
+    display(pd.read_csv(DA_CSV_OUT).head(5))
+except Exception:
+    pass
