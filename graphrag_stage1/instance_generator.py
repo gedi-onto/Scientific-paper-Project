@@ -2,7 +2,7 @@
 
 from rdflib import URIRef
 
-from ontology_manager import OntologyManager, normalize_lookup
+from .ontology_manager import OntologyManager, normalize_lookup
 
 
 class InstanceGenerator:

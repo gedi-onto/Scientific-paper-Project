@@ -2,7 +2,7 @@
 
 from rdflib import URIRef
 
-from ontology_manager import OntologyManager
+from .ontology_manager import OntologyManager
 
 
 class AssertionBuilder:

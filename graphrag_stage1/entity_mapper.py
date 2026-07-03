@@ -7,10 +7,10 @@ import os
 from rdflib import URIRef
 from rdflib.namespace import RDF, RDFS, XSD
 
-from canonicalizer import Canonicalizer
-from instance_generator import InstanceGenerator
-from ontology_manager import OntologyManager
-from semantic_typer import SemanticTyper
+from .canonicalizer import Canonicalizer
+from .instance_generator import InstanceGenerator
+from .ontology_manager import OntologyManager
+from .semantic_typer import SemanticTyper
 
 
 SEMANTIC_CLASS_IRIS = {

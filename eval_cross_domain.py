@@ -6,8 +6,8 @@ release_gates.json. It is a regression suite and a schema for growing adjudicate
 
 import json
 
-from stage1_classifier import process_paragraph
-from stage2_semantic_frames import stage2_pipeline
+from graphrag_stage1.stage1_classifier import process_paragraph
+from graphrag_stage1.stage2_semantic_frames import stage2_pipeline
 
 
 def facet_matches(statements: list, expected: dict) -> bool:

@@ -20,7 +20,7 @@ Run:  python eval.py
 import json
 import re
 
-from stage1_classifier import process_paragraph
+from graphrag_stage1.stage1_classifier import process_paragraph
 
 
 GOLD_PATH = "gold.json"

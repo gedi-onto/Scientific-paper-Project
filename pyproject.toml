@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "graphrag-stage1"
+version = "0.1.0"
+description = "Ontology-driven knowledge-extraction pipeline: paragraphs to a typed, provenance-anchored Knowledge Artifact Graph."
+readme = "DESIGN.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+authors = [{ name = "Gedi" }]
+keywords = ["graphrag", "knowledge-graph", "ontology", "nlp", "rag", "provenance"]
+
+# Core install (Stage 1 + Stage 2) needs only an HTTP client for the LLM.
+dependencies = [
+    "requests>=2.31,<3",
+]
+
+[project.optional-dependencies]
+# Stage 3 ontology mapping / SHACL publication gating.
+ontology = [
+    "rdflib>=7.0,<8",
+    "pyshacl>=0.28,<1",
+]
+dev = [
+    "pytest>=8",
+]
+
+[tool.setuptools]
+# Explicit package list: ship only the library, not the root-level dev/CLI
+# scripts (eval*.py, pipeline_runner.py, readiness_check.py, build_osti_corpus.py)
+# or the tests.
+packages = ["graphrag_stage1"]
+
+[tool.pytest.ini_options]
+# Tests live at the repo root and import the installed/importable package.
+testpaths = ["test_pipeline.py", "test_stage3.py"]

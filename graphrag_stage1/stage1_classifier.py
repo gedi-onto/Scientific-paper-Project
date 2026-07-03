@@ -22,7 +22,7 @@ import time
 from datetime import datetime, timezone
 import requests
 
-from production_support import PipelineConfig, validate_paragraph
+from .production_support import PipelineConfig, validate_paragraph
 
 
 OLLAMA_URL = "http://localhost:11434/api/generate"

@@ -1304,7 +1304,7 @@ def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "-":
         stage1_output = json.load(sys.stdin)
     else:
-        from stage1_classifier import process_paragraph, DEFAULT_PARAGRAPH
+        from .stage1_classifier import process_paragraph, DEFAULT_PARAGRAPH
 
         paragraph = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_PARAGRAPH
         stage1_output = process_paragraph(paragraph)

@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from validate_adjudication import validate_record
+from graphrag_stage1.validate_adjudication import validate_record
 
 
 REQUIRED_FILES = [

@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from stage2_semantic_frames import stage2_pipeline
+from graphrag_stage1.stage2_semantic_frames import stage2_pipeline
 
 
 def tokens(value: str) -> set:

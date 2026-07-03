@@ -2,8 +2,8 @@
 
 from rdflib import URIRef
 
-from ontology_manager import OntologyManager, normalize_lookup
-from relation_typer import RelationTyper
+from .ontology_manager import OntologyManager, normalize_lookup
+from .relation_typer import RelationTyper
 
 
 RELATION_TERMS = {

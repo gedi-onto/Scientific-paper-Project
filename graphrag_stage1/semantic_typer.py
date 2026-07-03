@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from ontology_manager import normalize_lookup
+from .ontology_manager import normalize_lookup
 
 
 TYPE_PATTERNS = (

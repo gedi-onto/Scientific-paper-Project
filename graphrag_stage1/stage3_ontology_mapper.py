@@ -15,13 +15,13 @@ from typing import Any, Optional
 from rdflib import RDF, URIRef
 from rdflib.namespace import XSD
 
-from ontology_manager import OntologyManager, normalize_lookup
-from assertion_builder import AssertionBuilder
-from entity_mapper import EntityMapper
-from measurement_mapper import MeasurementMapper
-from provenance_builder import ProvenanceBuilder
-from relation_mapper import RelationMapper
-from stage3_jsonld import build_jsonld
+from .ontology_manager import OntologyManager, normalize_lookup
+from .assertion_builder import AssertionBuilder
+from .entity_mapper import EntityMapper
+from .measurement_mapper import MeasurementMapper
+from .provenance_builder import ProvenanceBuilder
+from .relation_mapper import RelationMapper
+from .stage3_jsonld import build_jsonld
 
 
 def extract_stage2_frame(wrapper: dict) -> dict:
@@ -571,7 +571,7 @@ def main() -> None:
     manager = OntologyManager(args.ontology_root).load_all(args.domain_ontology)
     output = stage3_pipeline(stage2_output, manager)
     if args.neptune_output:
-        from stage3_neptune_export import export_neptune_nquads
+        from .stage3_neptune_export import export_neptune_nquads
 
         output["neptune_export"] = export_neptune_nquads(
             output,

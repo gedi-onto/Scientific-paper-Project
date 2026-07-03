@@ -5,12 +5,12 @@ from rdflib import Graph
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from ontology_manager import OntologyManager
-from canonicalizer import Canonicalizer
-from semantic_typer import SemanticTyper
-from stage3_ontology_mapper import stage3_pipeline
-from stage3_neptune_export import export_neptune_nquads
-from stage2_semantic_frames import postprocess_frame
+from graphrag_stage1.ontology_manager import OntologyManager
+from graphrag_stage1.canonicalizer import Canonicalizer
+from graphrag_stage1.semantic_typer import SemanticTyper
+from graphrag_stage1.stage3_ontology_mapper import stage3_pipeline
+from graphrag_stage1.stage3_neptune_export import export_neptune_nquads
+from graphrag_stage1.stage2_semantic_frames import postprocess_frame
 
 
 CORE_TTL = """@prefix owl: <http://www.w3.org/2002/07/owl#> .

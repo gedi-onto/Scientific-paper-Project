@@ -12,9 +12,9 @@ import argparse
 import json
 from pathlib import Path
 
-from stage1_classifier import process_paragraph
-from stage2_semantic_frames import stage2_pipeline
-from production_support import AuditLogger, PipelineConfig, RoutingQueue, stable_content_id
+from graphrag_stage1.stage1_classifier import process_paragraph
+from graphrag_stage1.stage2_semantic_frames import stage2_pipeline
+from graphrag_stage1.production_support import AuditLogger, PipelineConfig, RoutingQueue, stable_content_id
 
 
 def completed_ids(output_path: Path) -> set:

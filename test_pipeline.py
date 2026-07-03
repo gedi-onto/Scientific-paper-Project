@@ -4,12 +4,12 @@ from unittest.mock import patch
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from stage1_classifier import (
+from graphrag_stage1.stage1_classifier import (
     is_duplicate_unit,
     preserve_source_numbers,
     reconcile_decomposition,
 )
-from stage2_semantic_frames import (
+from graphrag_stage1.stage2_semantic_frames import (
     build_statement_graph,
     derive_artifact_type,
     extract_measurements,
@@ -17,9 +17,9 @@ from stage2_semantic_frames import (
     postprocess_frame,
     stage2_pipeline,
 )
-from production_support import RoutingQueue, stable_content_id, validate_paragraph
-from validate_adjudication import validate_record
-from adjudication_workflow import export_packet, finalize, merge_packet
+from graphrag_stage1.production_support import RoutingQueue, stable_content_id, validate_paragraph
+from graphrag_stage1.validate_adjudication import validate_record
+from graphrag_stage1.adjudication_workflow import export_packet, finalize, merge_packet
 
 
 def base_frame(**semantic_overrides):
@@ -152,8 +152,8 @@ class Stage2DeterministicTests(unittest.TestCase):
                 "stage2_frame": {"validation": {"automation_action": "PASS_TO_ONTOLOGY_MAPPING"}},
             }
 
-        with patch("stage2_semantic_frames.STAGE2_CONCURRENCY", 4), patch(
-            "stage2_semantic_frames.extract_with_routing", side_effect=fake_extract
+        with patch("graphrag_stage1.stage2_semantic_frames.STAGE2_CONCURRENCY", 4), patch(
+            "graphrag_stage1.stage2_semantic_frames.extract_with_routing", side_effect=fake_extract
         ):
             result = stage2_pipeline(stage1_output)
 

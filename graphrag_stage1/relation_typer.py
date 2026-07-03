@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import re
 
-from ontology_manager import normalize_lookup
+from .ontology_manager import normalize_lookup
 
 
 # Antonymic / contradiction verbs must be caught before any other rule and must

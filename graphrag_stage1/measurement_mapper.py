@@ -4,7 +4,7 @@ import re
 
 from rdflib import URIRef
 
-from ontology_manager import OntologyManager
+from .ontology_manager import OntologyManager
 
 
 class MeasurementMapper:
