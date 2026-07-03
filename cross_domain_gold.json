@@ -1,0 +1,14 @@
+[
+  {"id":"physics_1","domain":"physics","text":"The measured transition energy was 6.13 MeV.","protected":["6.13","MeV"],"must_contain":{"modality":"MEASURED"}},
+  {"id":"chemistry_1","domain":"chemistry","text":"The solution contained 1.2e-4 mol of sodium chloride.","protected":["1.2e-4","mol"],"must_contain":{"has_measurement":true}},
+  {"id":"biology_1","domain":"biology","text":"BRCA1 participates in DNA damage repair.","protected":["BRCA1"],"must_contain":{"role":"CONTENT"}},
+  {"id":"medicine_1","domain":"medicine","text":"Treatment reduced systolic blood pressure by 12 mmHg compared with placebo.","protected":["12","mmHg"],"must_contain":{"relation":"COMPARISON"}},
+  {"id":"materials_1","domain":"materials","text":"Annealing at 700 K increased grain size from 20 nm to 35 nm.","protected":["700","K","20","nm","35"],"must_contain":{"relation":"CAUSATION"}},
+  {"id":"climate_1","domain":"climate","text":"The model predicts a 2.1 K temperature increase by 2100.","protected":["2.1","K","2100"],"must_contain":{"modality":"PREDICTED"}},
+  {"id":"software_1","domain":"software","text":"Version 3.2 reduced median query latency to 18 ms.","protected":["3.2","18","ms"],"must_contain":{"has_measurement":true}},
+  {"id":"engineering_1","domain":"engineering","text":"The controller adjusts valve position because pressure feedback changes.","protected":[],"must_contain":{},"must_discourse":"CAUSE"},
+  {"id":"mathematics_1","domain":"mathematics","text":"For n = 4, the equation has exactly two real roots.","protected":["4"],"must_contain":{"role":"CONTENT"}},
+  {"id":"astronomy_1","domain":"astronomy","text":"The source was observed at a redshift of 7.54.","protected":["7.54"],"must_contain":{"modality":"OBSERVED"}},
+  {"id":"negation_1","domain":"cross-domain","text":"The data did not show a correlation between dose and recovery time.","protected":[],"must_contain":{"polarity":"NEGATED","relation":"CORRELATION"}},
+  {"id":"coreference_1","domain":"cross-domain","text":"Testing reduced localization error by 25 percent. These findings support the architecture.","protected":["25"],"must_resolve":"These findings"}
+]

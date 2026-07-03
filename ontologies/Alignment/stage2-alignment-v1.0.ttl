@@ -1,0 +1,78 @@
+@prefix align: <https://w3id.org/graphrag/alignment/v1/> .
+@prefix iao: <http://purl.obolibrary.org/obo/IAO_> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://w3id.org/graphrag/alignment/v1> a owl:Ontology ;
+    rdfs:label "GraphRAG Stage 2 alignment ontology" ;
+    owl:versionInfo "1.0.0" ;
+    rdfs:comment "Pipeline vocabulary bridging frozen Stage 2 frame names to ontology-grounded information artifacts. Source ontologies are not modified." .
+
+# CORRELATION and PREDICTION already resolve uniquely in the loaded INO/CCO.
+align:AssumptionFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "ASSUMPTION" .
+align:CausalRelationFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "CAUSAL_RELATION" .
+align:ClaimFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "CLAIM" .
+align:ClassificationFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "CLASSIFICATION" .
+align:ComparisonFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "COMPARISON" .
+align:ConsistencyFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "CONSISTENCY" .
+align:DefinitionFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "DEFINITION" .
+align:DependencyFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "DEPENDENCY" .
+align:EvidenceFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "EVIDENCE" .
+align:HypothesisFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "HYPOTHESIS" .
+align:MeasurementFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "MEASUREMENT" .
+align:MechanismFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "MECHANISM" .
+align:MethodFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "METHOD" .
+align:ObservationFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "OBSERVATION" .
+align:PartWholeFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "PART_WHOLE" .
+align:SupportFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "SUPPORT" .
+align:TemporalRelationFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "TEMPORAL_RELATION" .
+align:ValidationFrame a owl:Class ; rdfs:subClassOf iao:0000030 ; skos:altLabel "VALIDATION" .
+
+align:hasSemanticParticipant a owl:ObjectProperty ;
+    rdfs:label "has semantic participant" ;
+    rdfs:domain iao:0000030 .
+
+align:supports a owl:ObjectProperty ; rdfs:label "supports" .
+align:predicts a owl:ObjectProperty ; rdfs:label "predicts" .
+align:isConsistentWith a owl:ObjectProperty ; rdfs:label "is consistent with" .
+align:reduces a owl:ObjectProperty ; rdfs:label "reduces" .
+align:comparesWith a owl:ObjectProperty ; rdfs:label "compares with" .
+align:hypothesizes a owl:ObjectProperty ; rdfs:label "hypothesizes" .
+align:improves a owl:ObjectProperty ; rdfs:label "improves" .
+align:measures a owl:ObjectProperty ; rdfs:label "measures" .
+align:providesEvidenceFor a owl:ObjectProperty ;
+    rdfs:label "provides evidence for" ; skos:altLabel "EVIDENCE" .
+align:explains a owl:ObjectProperty ;
+    rdfs:label "explains" ; skos:altLabel "EXPLANATION" .
+align:develops a owl:ObjectProperty ; rdfs:label "develops" .
+align:causes a owl:ObjectProperty ; rdfs:label "causes" ; skos:altLabel "CAUSATION" .
+align:increases a owl:ObjectProperty ; rdfs:label "increases" .
+align:evaluates a owl:ObjectProperty ; rdfs:label "evaluates" .
+align:prioritizes a owl:ObjectProperty ; rdfs:label "prioritizes" .
+align:generates a owl:ObjectProperty ; rdfs:label "generates" .
+align:correlatesWith a owl:ObjectProperty ; rdfs:label "correlates with" ; skos:altLabel "CORRELATION" .
+align:providesBackgroundFor a owl:ObjectProperty ; rdfs:label "provides background for" ; skos:altLabel "BACKGROUND" .
+align:providesSourceContextFor a owl:ObjectProperty ; rdfs:label "provides source context for" ; skos:altLabel "SOURCE_CONTEXT" .
+align:allocates a owl:ObjectProperty ; rdfs:label "allocates" .
+align:actsOn a owl:ObjectProperty ; rdfs:label "acts on" ; skos:altLabel "MECHANISM" .
+align:elaborates a owl:ObjectProperty ; rdfs:label "elaborates" ; skos:altLabel "ELABORATION" .
+align:adjusts a owl:ObjectProperty ; rdfs:label "adjusts" .
+align:assigns a owl:ObjectProperty ; rdfs:label "assigns" .
+align:maintains a owl:ObjectProperty ; rdfs:label "maintains" .
+align:suggests a owl:ObjectProperty ; rdfs:label "suggests" .
+
+align:sourceStatementId a owl:DatatypeProperty ; skos:altLabel "source statement id" ; rdfs:range xsd:string .
+align:sourceText a owl:DatatypeProperty ; skos:altLabel "source text" ; rdfs:range xsd:string .
+align:measurementValue a owl:DatatypeProperty ; skos:altLabel "measurement value" ; rdfs:range xsd:decimal .
+align:measurementUnit a owl:DatatypeProperty ; skos:altLabel "measurement unit" ; rdfs:range xsd:string .
+align:sourceParagraphId a owl:DatatypeProperty ; skos:altLabel "source paragraph id" ; rdfs:range xsd:string .
+align:sourcePage a owl:DatatypeProperty ; skos:altLabel "source page" ; rdfs:range xsd:integer .
+align:sourceCharacterStart a owl:DatatypeProperty ; skos:altLabel "source character start" ; rdfs:range xsd:integer .
+align:sourceCharacterEnd a owl:DatatypeProperty ; skos:altLabel "source character end" ; rdfs:range xsd:integer .
+align:sourceUri a owl:DatatypeProperty ; skos:altLabel "source uri" ; rdfs:range xsd:string .
+align:mappingConfidence a owl:DatatypeProperty ; skos:altLabel "mapping confidence" ; rdfs:range xsd:decimal .
+align:mappingMethod a owl:DatatypeProperty ; skos:altLabel "mapping method" ; rdfs:range xsd:string .
+align:semanticType a owl:DatatypeProperty ; skos:altLabel "semantic type" ; rdfs:range xsd:string .
+align:canonicalForm a owl:DatatypeProperty ; skos:altLabel "canonical form" ; rdfs:range xsd:string .

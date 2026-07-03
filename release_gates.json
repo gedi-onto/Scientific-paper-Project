@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "required": {
+    "numeric_token_preservation": 1.0,
+    "unit_preservation": 1.0,
+    "evidence_text_exactness": 1.0,
+    "provenance_completeness": 1.0,
+    "artifact_recall": 0.98,
+    "frame_type_accuracy": 0.95,
+    "candidate_relation_precision": 0.95,
+    "candidate_relation_recall": 0.90,
+    "coreference_resolution_accuracy": 0.95,
+    "unsupported_information_rate_max": 0.005
+  },
+  "minimum_evaluation_size": {
+    "paragraphs": 500,
+    "documents": 50,
+    "scientific_domains": 8
+  },
+  "deployment_blockers": [
+    "unresolved critical-severity defects",
+    "unversioned model or prompt",
+    "missing source provenance",
+    "failed security authorization",
+    "failed data-governance review"
+  ]
+}

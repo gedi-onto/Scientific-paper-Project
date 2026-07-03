@@ -1,0 +1,16 @@
+{
+  "security_authorization": {
+    "status": "pending",
+    "authorizing_official": null,
+    "approval_date": null,
+    "system_scope": null,
+    "evidence_reference": null
+  },
+  "data_governance_approval": {
+    "status": "pending",
+    "approving_official": null,
+    "approval_date": null,
+    "data_scope": null,
+    "evidence_reference": null
+  }
+}

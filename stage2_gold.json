@@ -1,0 +1,94 @@
+[
+  {
+    "id": "s2_measurement_physics",
+    "domain": "physics",
+    "text": "The binding energy of the deuteron is 2.224 MeV.",
+    "facets": {"role":"CONTENT","proposition_type":"MEASUREMENT","relation":"NONE","modality":"MEASURED"},
+    "predicate": "is",
+    "arguments": [],
+    "expected_frame_type": "MEASUREMENT",
+    "expected_entities": ["deuteron"],
+    "expected_measurement": {"value":"2.224","unit":"MeV"}
+  },
+  {
+    "id": "s2_correlation_biology",
+    "domain": "biology",
+    "text": "Protein abundance is correlated with cell growth rate.",
+    "facets": {"role":"CONTENT","proposition_type":"RELATION","relation":"CORRELATION","modality":"OBSERVED"},
+    "predicate": "correlates with",
+    "arguments": [{"role":"arg1","text":"protein abundance"},{"role":"arg2","text":"cell growth rate"}],
+    "expected_frame_type": "CORRELATION",
+    "expected_entities": ["protein abundance", "cell growth rate"],
+    "expected_relations": [{"subject":"protein abundance","object":"cell growth rate"}]
+  },
+  {
+    "id": "s2_causation_medicine",
+    "domain": "medicine",
+    "text": "Increasing the dose reduced systolic blood pressure.",
+    "facets": {"role":"CONTENT","proposition_type":"RELATION","relation":"CAUSATION","modality":"OBSERVED"},
+    "predicate": "reduced",
+    "arguments": [{"role":"arg1","text":"increasing the dose"},{"role":"arg2","text":"systolic blood pressure"}],
+    "expected_frame_type": "CAUSAL_RELATION",
+    "expected_entities": ["dose", "systolic blood pressure"],
+    "expected_relations": [{"subject":"increasing the dose","object":"systolic blood pressure"}]
+  },
+  {
+    "id": "s2_comparison_materials",
+    "domain": "materials",
+    "text": "Alloy A has higher tensile strength than Alloy B.",
+    "facets": {"role":"CONTENT","proposition_type":"RELATION","relation":"COMPARISON","modality":"ASSERTED"},
+    "predicate": "higher than",
+    "arguments": [{"role":"arg1","text":"Alloy A"},{"role":"arg2","text":"Alloy B"}],
+    "expected_frame_type": "COMPARISON",
+    "expected_entities": ["Alloy A", "Alloy B"],
+    "expected_relations": [{"subject":"Alloy A","object":"Alloy B"}]
+  },
+  {
+    "id": "s2_definition_mathematics",
+    "domain": "mathematics",
+    "text": "A prime number is an integer greater than one with exactly two positive divisors.",
+    "facets": {"role":"CONTENT","proposition_type":"DEFINITION","relation":"NONE","modality":"DEFINED"},
+    "predicate": "is",
+    "arguments": [],
+    "expected_frame_type": "DEFINITION",
+    "expected_entities": ["prime number"],
+    "expected_numbers": ["one", "two"]
+  },
+  {
+    "id": "s2_mechanism_engineering",
+    "domain": "engineering",
+    "text": "The fusion algorithm evaluates sensor confidence and adjusts sensor weighting.",
+    "facets": {"role":"CONTENT","proposition_type":"PROCESS","relation":"MECHANISM","modality":"ASSERTED"},
+    "predicate": "adjusts",
+    "arguments": [],
+    "expected_frame_type": "MECHANISM",
+    "expected_entities": ["fusion algorithm", "sensor"],
+    "expected_relation_terms": ["evaluates", "adjusts"]
+  },
+  {
+    "id": "s2_prediction_climate",
+    "domain": "climate",
+    "text": "The model predicts that global temperature will increase by 2.1 K by 2100.",
+    "facets": {"role":"CONTENT","proposition_type":"PROPERTY","relation":"NONE","modality":"PREDICTED"},
+    "predicate": "increase",
+    "arguments": [],
+    "expected_frame_type": "PREDICTION",
+    "expected_entities": ["model", "global temperature"],
+    "expected_measurement": {"value":"2.1","unit":"K"},
+    "expected_numbers": ["2100"]
+  },
+  {
+    "id": "s2_coreference_cross_domain",
+    "domain": "cross-domain",
+    "context": [
+      {"id":"s2_coreference_cross_domain:u1","text":"Field tests showed that sensor fusion reduced localization error by 25 percent."}
+    ],
+    "text": "These findings support the sensor-fusion architecture.",
+    "facets": {"role":"CONTENT","proposition_type":"RELATION","relation":"NONE","modality":"ASSERTED"},
+    "predicate": "support",
+    "arguments": [],
+    "expected_frame_type": "SUPPORT",
+    "expected_entities": ["sensor-fusion architecture"],
+    "expected_resolution": "These findings"
+  }
+]

@@ -1,0 +1,21 @@
+@prefix graphrag: <https://w3id.org/graphrag/vocab/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+graphrag:SourceStatementShape a sh:NodeShape ;
+    sh:targetClass graphrag:SourceStatement ;
+    sh:property [ sh:path graphrag:sourceText ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+    sh:property [ sh:path <http://www.w3.org/ns/prov#wasDerivedFrom> ; sh:minCount 1 ; sh:nodeKind sh:IRI ] .
+
+graphrag:QualifiedAssertionShape a sh:NodeShape ;
+    sh:targetClass graphrag:QualifiedAssertion ;
+    sh:property [ sh:path rdf:subject ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path rdf:predicate ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path rdf:object ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path <http://www.w3.org/ns/prov#wasDerivedFrom> ; sh:minCount 1 ; sh:nodeKind sh:IRI ] .
+
+graphrag:MeasurementShape a sh:NodeShape ;
+    sh:targetClass graphrag:Measurement ;
+    sh:property [ sh:path graphrag:value ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:property [ sh:path <http://www.w3.org/ns/prov#wasDerivedFrom> ; sh:minCount 1 ; sh:nodeKind sh:IRI ] .

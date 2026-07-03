@@ -1,0 +1,71 @@
+[
+  {
+    "id": "p1_running_example",
+    "text": "Although quadrupole moments are generally correlated with shell structure, the present model predicts that K39 and K41 should exhibit positive values because proton and neutron shells tend to align in a manner that maximizes overlap between their distributions. These predictions are consistent with observed trends reported in previous studies.",
+    "expected_unit_count": [4, 5],
+    "must_contain": [
+      {"relation": "CORRELATION"},
+      {"modality": "PREDICTED"},
+      {"relation": "MECHANISM"},
+      {"modality": "OBSERVED"}
+    ]
+  },
+  {
+    "id": "p2_monadic_measurement",
+    "text": "The binding energy of the deuteron is 2.224 MeV.",
+    "expected_unit_count": [1, 1],
+    "must_contain": [
+      {"relation": "NONE"},
+      {"has_measurement": true}
+    ]
+  },
+  {
+    "id": "p3_causation_no_mechanism",
+    "text": "Increasing the neutron number raises the binding energy per nucleon up to iron.",
+    "expected_unit_count": [1, 1],
+    "must_contain": [
+      {"relation": "CAUSATION"}
+    ]
+  },
+  {
+    "id": "p4_negated_correlation",
+    "text": "The data do not show any correlation between nuclear spin and magnetic moment in these isotopes.",
+    "expected_unit_count": [1, 1],
+    "must_contain": [
+      {"relation": "CORRELATION", "polarity": "NEGATED"}
+    ]
+  },
+  {
+    "id": "p5_definition",
+    "text": "The quadrupole moment is a measure of the deviation of a charge distribution from spherical symmetry.",
+    "expected_unit_count": [1, 1],
+    "must_contain": [
+      {"modality": "DEFINED", "relation": "NONE"}
+    ]
+  },
+  {
+    "id": "p6_mechanism_because_clause",
+    "text": "The capture cross-section drops at high energy because the incoming neutrons pass through the nucleus too quickly to be captured.",
+    "expected_unit_count": [2, 2],
+    "must_contain": [
+      {"relation": "MECHANISM"}
+    ]
+  },
+  {
+    "id": "p7_role_and_assumption",
+    "text": "Bohr and Mottelson, Nuclear Structure, Vol. 1 (1969). The model assumes a deformed mean field.",
+    "expected_unit_count": [2, 2],
+    "must_contain": [
+      {"role": "REFERENCE"},
+      {"modality": "ASSUMED"}
+    ]
+  },
+  {
+    "id": "p8_comparison",
+    "text": "The first 2+ state lies lower in energy than the 0+ state in deformed nuclei.",
+    "expected_unit_count": [1, 1],
+    "must_contain": [
+      {"relation": "COMPARISON"}
+    ]
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "artifact_recall": 1.0,
+  "numeric_token_preservation": 1.0,
+  "unit_preservation": 1.0,
+  "evidence_text_exactness": 1.0,
+  "provenance_completeness": 1.0,
+  "frame_type_accuracy": 1.0,
+  "candidate_relation_precision": 1.0,
+  "candidate_relation_recall": 1.0,
+  "coreference_resolution_accuracy": 1.0,
+  "unsupported_information_rate": 0.0,
+  "gold_suite_artifact_constraints": "13/13",
+  "gold_suite_decontextualization": "13/13",
+  "gold_suite_unit_count": "8/8",
+  "cross_domain_seed_pass_rate": 1.0,
+  "cross_domain_seed_cases": 12,
+  "stage2_gold_cases": 8,
+  "notes": "The engineering seed was adjudicated as a CAUSE discourse edge rather than a MECHANISM facet. Null metrics fail the release gate."
+}
