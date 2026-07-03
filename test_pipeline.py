@@ -144,7 +144,7 @@ class Stage2DeterministicTests(unittest.TestCase):
         ]
         stage1_output = {"paragraph_id": "p1", "statements": statements, "relations": []}
 
-        def fake_extract(statement, _stage1_output):
+        def fake_extract(statement, _stage1_output, _client=None):
             # Reverse completion order without slowing the test materially.
             time.sleep((5 - int(statement["id"].split("u")[-1])) * 0.005)
             return {

@@ -2,19 +2,24 @@ import json
 import os
 import re
 import sys
-import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
-import requests
+
+from .llm import LLMClient, OllamaClient, resolved_model_name
 
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = os.getenv("STAGE2_MODEL", "qwen3:8b")
-STRONGER_MODEL_NAME = os.getenv("STAGE2_STRONGER_MODEL", MODEL_NAME)
 MAX_REPROCESS_ATTEMPTS = int(os.getenv("STAGE2_MAX_RETRIES", "1"))
-OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "180"))
-OLLAMA_RETRIES = int(os.getenv("OLLAMA_RETRIES", "2"))
 STAGE2_CONCURRENCY = max(1, int(os.getenv("STAGE2_CONCURRENCY", "2")))
+
+
+def default_client() -> LLMClient:
+    """Default LLM transport (local Ollama from env). Override per call via `client=`.
+
+    Honours STAGE2_MODEL and STAGE2_STRONGER_MODEL for the escalation route.
+    """
+    return OllamaClient.from_env(
+        "STAGE2_MODEL", stronger_env="STAGE2_STRONGER_MODEL", label="Stage 2"
+    )
 
 
 FRAME_TYPES = {
@@ -655,33 +660,6 @@ reference_resolutions item structure:
 """
 
 
-def call_ollama(prompt: str, schema: dict, model_name: str = MODEL_NAME) -> dict:
-    last_error = None
-    for attempt in range(OLLAMA_RETRIES + 1):
-        try:
-            response = requests.post(
-                OLLAMA_URL,
-                json={
-                    "model": model_name,
-                    "prompt": prompt,
-                    "stream": False,
-                    "think": False,
-                    "format": schema,
-                    "options": {"temperature": 0},
-                },
-                timeout=OLLAMA_TIMEOUT,
-            )
-            response.raise_for_status()
-            raw = response.json()["response"].strip()
-            raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
-            return json.loads(raw)
-        except (requests.RequestException, KeyError, ValueError) as exc:
-            last_error = exc
-            if attempt < OLLAMA_RETRIES:
-                time.sleep(2 ** attempt)
-    raise RuntimeError(f"Ollama Stage 2 failed after {OLLAMA_RETRIES + 1} attempts") from last_error
-
-
 def _unique_nonempty(values: list) -> list:
     seen, result = set(), []
     for value in values:
@@ -1209,13 +1187,14 @@ def postprocess_frame(
 def extract_semantic_frame(
     statement: dict,
     stage1_output: dict,
+    client: LLMClient,
     corrective_feedback: str = "",
-    model_name: str = MODEL_NAME,
+    stronger: bool = False,
     attempt: int = 1,
 ) -> dict:
     artifact_type = derive_artifact_type(statement, stage1_output)
     prompt = build_stage2_prompt(statement, stage1_output, corrective_feedback)
-    frame = call_ollama(prompt, FRAME_SCHEMA, model_name=model_name)
+    frame = client.complete(prompt, FRAME_SCHEMA, stronger=stronger)
     frame = postprocess_frame(frame, artifact_type, statement, stage1_output)
 
     return {
@@ -1224,14 +1203,14 @@ def extract_semantic_frame(
         "stage1_type": artifact_type,
         "stage1_facets": get_facets(statement),
         "provenance": statement.get("provenance", {}),
-        "processing": {"attempt": attempt, "model": model_name},
+        "processing": {"attempt": attempt, "model": resolved_model_name(client, stronger)},
         "stage2_frame": frame,
     }
 
 
-def extract_with_routing(statement: dict, stage1_output: dict) -> dict:
+def extract_with_routing(statement: dict, stage1_output: dict, client: LLMClient) -> dict:
     """Execute bounded automated reprocessing routes and return the last attempt."""
-    item = extract_semantic_frame(statement, stage1_output)
+    item = extract_semantic_frame(statement, stage1_output, client)
     for retry in range(MAX_REPROCESS_ATTEMPTS):
         frame = item["stage2_frame"]
         action = frame["validation"]["automation_action"]
@@ -1244,22 +1223,23 @@ def extract_with_routing(statement: dict, stage1_output: dict) -> dict:
             "grounding_errors": validation.get("grounding_errors", []),
             "missing_required_fields": validation.get("missing_required_fields", []),
         })
-        model = STRONGER_MODEL_NAME if action == "REPROCESS_WITH_STRONGER_MODEL" else MODEL_NAME
         item = extract_semantic_frame(
             statement,
             stage1_output,
+            client,
             corrective_feedback=feedback,
-            model_name=model,
+            stronger=action == "REPROCESS_WITH_STRONGER_MODEL",
             attempt=retry + 2,
         )
     return item
 
 
-def stage2_pipeline(stage1_output: dict) -> dict:
+def stage2_pipeline(stage1_output: dict, client: LLMClient = None) -> dict:
+    client = client or default_client()
     statements = stage1_output.get("statements", [])
     if STAGE2_CONCURRENCY == 1 or len(statements) <= 1:
         frames = [
-            extract_with_routing(statement, stage1_output)
+            extract_with_routing(statement, stage1_output, client)
             for statement in statements
         ]
     else:
@@ -1267,7 +1247,7 @@ def stage2_pipeline(stage1_output: dict) -> dict:
         # executor.map preserves input order, so Stage 3 receives frames in the
         # same deterministic order as the former sequential implementation.
         def extract_statement(statement: dict) -> dict:
-            return extract_with_routing(statement, stage1_output)
+            return extract_with_routing(statement, stage1_output, client)
 
         worker_count = min(STAGE2_CONCURRENCY, len(statements))
         with ThreadPoolExecutor(
@@ -1284,7 +1264,7 @@ def stage2_pipeline(stage1_output: dict) -> dict:
     return {
         "stage": "stage_2_semantic_frame_extraction",
         "pipeline_version": "1.2",
-        "model": MODEL_NAME,
+        "model": client.model_id,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "paragraph_id": stage1_output.get("paragraph_id"),
         "frames": frames,

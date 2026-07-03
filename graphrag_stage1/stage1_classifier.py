@@ -16,19 +16,16 @@ field) so the model returns schema-valid JSON directly -- no regex scraping.
 """
 
 import json
-import os
 import re
-import time
 from datetime import datetime, timezone
-import requests
 
+from .llm import LLMClient, OllamaClient
 from .production_support import PipelineConfig, validate_paragraph
 
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = os.getenv("STAGE1_MODEL", "qwen3:8b")
-OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "180"))
-OLLAMA_RETRIES = int(os.getenv("OLLAMA_RETRIES", "2"))
+def default_client() -> LLMClient:
+    """Default LLM transport (local Ollama from env). Override per call via `client=`."""
+    return OllamaClient.from_env("STAGE1_MODEL", label="Stage 1")
 
 
 # ----------------------------------------------------------------------------
@@ -56,36 +53,6 @@ DISCOURSE = ["EXPLANATION", "CAUSE", "EVIDENCE", "SUPPORT", "CONTRAST",
 RECALL_KINDS = ["MECHANISM", "CAUSATION", "PREDICTION", "OBSERVATION", "NEGATION"]
 
 
-# ----------------------------------------------------------------------------
-# Ollama transport
-# ----------------------------------------------------------------------------
-
-def call_ollama(prompt: str, schema: dict) -> dict:
-    """Call Ollama with a JSON schema and return parsed, schema-valid JSON."""
-    last_error = None
-    for attempt in range(OLLAMA_RETRIES + 1):
-        try:
-            response = requests.post(
-                OLLAMA_URL,
-                json={
-                    "model": MODEL_NAME,
-                    "prompt": prompt,
-                    "stream": False,
-                    "think": False,
-                    "format": schema,
-                    "options": {"temperature": 0},
-                },
-                timeout=OLLAMA_TIMEOUT,
-            )
-            response.raise_for_status()
-            raw = response.json()["response"].strip()
-            raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
-            return json.loads(raw)
-        except (requests.RequestException, KeyError, ValueError) as exc:
-            last_error = exc
-            if attempt < OLLAMA_RETRIES:
-                time.sleep(2 ** attempt)
-    raise RuntimeError(f"Ollama Stage 1 failed after {OLLAMA_RETRIES + 1} attempts") from last_error
 
 
 # ----------------------------------------------------------------------------
@@ -377,8 +344,8 @@ Paragraph:
 """
 
 
-def decompose(paragraph: str) -> dict:
-    return call_ollama(build_decompose_prompt(paragraph), DECOMPOSE_SCHEMA)
+def decompose(paragraph: str, client: LLMClient) -> dict:
+    return client.complete(build_decompose_prompt(paragraph), DECOMPOSE_SCHEMA)
 
 
 # ----------------------------------------------------------------------------
@@ -485,8 +452,8 @@ Statement:
 """
 
 
-def classify(unit_text: str) -> dict:
-    return call_ollama(build_classify_prompt(unit_text), CLASSIFY_SCHEMA)
+def classify(unit_text: str, client: LLMClient) -> dict:
+    return client.complete(build_classify_prompt(unit_text), CLASSIFY_SCHEMA)
 
 
 # A single batched classify call replaces N per-statement calls for a paragraph.
@@ -533,7 +500,7 @@ def _classify_complete(item: object) -> bool:
     return isinstance(item, dict) and all(key in item for key in CLASSIFY_KEYS)
 
 
-def classify_batch(unit_texts: list) -> list:
+def classify_batch(unit_texts: list, client: LLMClient) -> list:
     """Classify a whole paragraph's statements in one structured call.
 
     Any statement the batch call omits or returns incompletely falls back to the
@@ -543,9 +510,9 @@ def classify_batch(unit_texts: list) -> list:
     if not unit_texts:
         return []
     if len(unit_texts) == 1:
-        return [classify(unit_texts[0])]
+        return [classify(unit_texts[0], client)]
     try:
-        raw = call_ollama(build_batch_classify_prompt(unit_texts), BATCH_CLASSIFY_SCHEMA)
+        raw = client.complete(build_batch_classify_prompt(unit_texts), BATCH_CLASSIFY_SCHEMA)
         results = raw.get("results", []) if isinstance(raw, dict) else []
     except RuntimeError:
         results = []
@@ -556,7 +523,7 @@ def classify_batch(unit_texts: list) -> list:
         idx = item.get("index")
         if isinstance(idx, int) and 0 <= idx < len(unit_texts) and idx not in by_index:
             by_index[idx] = item
-    return [by_index.get(i) or classify(text) for i, text in enumerate(unit_texts)]
+    return [by_index.get(i) or classify(text, client) for i, text in enumerate(unit_texts)]
 
 
 # ----------------------------------------------------------------------------
@@ -605,8 +572,8 @@ If nothing is missing, return an empty list.
 """
 
 
-def validate(paragraph: str, units: list) -> dict:
-    return call_ollama(build_recall_prompt(paragraph, units), RECALL_SCHEMA)
+def validate(paragraph: str, units: list, client: LLMClient) -> dict:
+    return client.complete(build_recall_prompt(paragraph, units), RECALL_SCHEMA)
 
 
 # ----------------------------------------------------------------------------
@@ -696,18 +663,22 @@ def self_audit(paragraph: str, statements: list, recall: dict) -> dict:
 # ----------------------------------------------------------------------------
 
 def process_paragraph(
-    paragraph: str, paragraph_id: str = "p1", source_metadata: dict = None
+    paragraph: str,
+    paragraph_id: str = "p1",
+    source_metadata: dict = None,
+    client: LLMClient = None,
 ) -> dict:
+    client = client or default_client()
     paragraph = validate_paragraph(paragraph, PipelineConfig().max_paragraph_chars)
     source_metadata = source_metadata or {}
 
     # L3 Decompose
-    decomposed = reconcile_decomposition(paragraph, decompose(paragraph))
+    decomposed = reconcile_decomposition(paragraph, decompose(paragraph, client))
     units = decomposed.get("units", [])
     relations = decomposed.get("relations", [])
 
     # L7 recall pass -- fold any misses back in as recovered units
-    recall = validate(paragraph, units)
+    recall = validate(paragraph, units, client)
     next_index = len(units) + 1
     recovered_ids = []
     for miss in recall.get("missing", []):
@@ -731,7 +702,7 @@ def process_paragraph(
     # One batched classify call for the whole paragraph replaces N per-statement
     # calls; classify_batch falls back to single calls for any incomplete item,
     # so results match the previous per-statement path.
-    facets = classify_batch([item[2] for item in prepared])
+    facets = classify_batch([item[2] for item in prepared], client)
 
     for (u, original_rewrite, unit_text, evidence, fidelity), f in zip(prepared, facets):
         cues = extract_cues(unit_text)
@@ -790,7 +761,7 @@ def process_paragraph(
     return {
         "stage": "stage_1_information_artifact_analysis",
         "pipeline_version": "1.1",
-        "model": MODEL_NAME,
+        "model": client.model_id,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "paragraph_id": paragraph_id,
         "source_metadata": source_metadata,
