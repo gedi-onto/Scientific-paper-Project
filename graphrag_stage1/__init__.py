@@ -6,12 +6,16 @@ Stage 3 maps those frames onto an OWL ontology. See DESIGN.md.
 
 Public API (stable surface for integrators):
 
-    from graphrag_stage1 import process_paragraph, stage2_pipeline, PipelineConfig
+    from graphrag_stage1 import run_pipeline
+    from graphrag_stage1.llm import LLMClient   # implement this over your model
 
-    stage1 = process_paragraph(paragraph)          # KAG for one paragraph
-    stage2 = stage2_pipeline(stage1)               # validated semantic frames
-    # Stage 3 requires the [ontology] extra (rdflib/pyshacl):
-    from graphrag_stage1 import stage3_pipeline, OntologyManager
+    out = run_pipeline(paragraph, client=my_client)
+    out["stage1"]   # KAG for the paragraph
+    out["stage2"]   # validated semantic frames
+
+Lower-level entry points (process_paragraph, stage2_pipeline) are also
+exported. Stage 3 ontology mapping requires the [ontology] extra
+(rdflib/pyshacl) and an OntologyManager; see INTEGRATION.md.
 
 Re-exports are lazy (PEP 562): importing this package pulls in nothing heavy;
 ``rdflib`` is only imported when you first touch a Stage 3 symbol.
@@ -22,11 +26,14 @@ __version__ = "0.1.0"
 # name -> submodule providing it. Resolved lazily on first attribute access so
 # that `import graphrag_stage1` never imports rdflib/pyshacl (Stage 3 only).
 _EXPORTS = {
+    "run_pipeline": "pipeline",
     "process_paragraph": "stage1_classifier",
     "stage2_pipeline": "stage2_semantic_frames",
     "stage3_pipeline": "stage3_ontology_mapper",
     "PipelineConfig": "production_support",
     "OntologyManager": "ontology_manager",
+    "LLMClient": "llm",
+    "OllamaClient": "llm",
 }
 
 __all__ = ["__version__", *_EXPORTS]
