@@ -128,6 +128,26 @@ Treat `pipeline_version` + `model` as your **compatibility and provenance keys**
 pin behavior to a `pipeline_version`, and every node is auditable back to the
 exact model that produced it. See DESIGN.md §4 for the full field-level schema.
 
+### Machine-checkable validation
+
+The IR is described by versioned JSON Schemas shipped in the wheel
+(`graphrag_stage1/schemas/stage1-1.1.json`, `stage2-1.2.json`). Assert
+conformance in your pipeline (needs the `[validation]` extra for `jsonschema`):
+
+```python
+from graphrag_stage1 import validate, SchemaValidationError
+
+try:
+    validate(out["stage1"])   # picks the schema from stage + pipeline_version
+    validate(out["stage2"])
+except SchemaValidationError as e:
+    ...  # reject / quarantine before it reaches your graph store
+```
+
+The schemas lock the envelope, provenance anchors, and the facet enums (the hard
+contract) while leaving LLM-decided nested content open for forward
+compatibility. A test keeps the schema enums in sync with the code constants.
+
 ---
 
 ## 5. Operational notes

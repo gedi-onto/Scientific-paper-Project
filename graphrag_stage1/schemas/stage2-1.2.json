@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://graphrag-stage1/schemas/stage2-1.2.json",
+  "title": "Stage 2 semantic-frame output",
+  "description": "Envelope emitted by stage2_pipeline / run_pipeline['stage2']. pipeline_version 1.2. The nested stage2_frame is LLM-decided and intentionally left open; the envelope and per-frame anchors are the contract.",
+  "type": "object",
+  "required": ["stage", "pipeline_version", "model", "generated_at", "paragraph_id", "frames", "stage1_relations", "statement_graph", "audit"],
+  "properties": {
+    "stage": { "const": "stage_2_semantic_frame_extraction" },
+    "pipeline_version": { "const": "1.2" },
+    "model": { "type": "string", "description": "client.model_id that produced this output" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "paragraph_id": { "type": ["string", "null"] },
+    "frames": { "type": "array", "items": { "$ref": "#/$defs/frame" } },
+    "stage1_relations": { "type": "array" },
+    "statement_graph": { "type": "object" },
+    "audit": {
+      "type": "object",
+      "required": ["frame_count", "statements_processed", "all_statements_processed"],
+      "properties": {
+        "frame_count": { "type": "integer", "minimum": 0 },
+        "statements_processed": { "type": "integer", "minimum": 0 },
+        "all_statements_processed": { "type": "boolean" }
+      }
+    }
+  },
+  "$defs": {
+    "frame": {
+      "type": "object",
+      "required": ["statement_id", "stage2_frame", "processing"],
+      "properties": {
+        "statement_id": { "type": ["string", "null"] },
+        "source_text": { "type": ["string", "null"] },
+        "stage1_type": { "type": "string" },
+        "stage1_facets": { "type": "object" },
+        "provenance": { "type": "object" },
+        "processing": {
+          "type": "object",
+          "required": ["attempt", "model"],
+          "properties": {
+            "attempt": { "type": "integer", "minimum": 1 },
+            "model": { "type": "string" }
+          }
+        },
+        "stage2_frame": {
+          "type": "object",
+          "description": "Semantic frame + validation + confidence. LLM-decided; open by design.",
+          "properties": {
+            "frame_type": { "type": "string" },
+            "validation": { "type": "object" },
+            "confidence": { "type": ["number", "object", "null"] }
+          }
+        }
+      }
+    }
+  }
+}

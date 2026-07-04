@@ -23,8 +23,13 @@ ontology = [
     "rdflib>=7.0,<8",
     "pyshacl>=0.28,<1",
 ]
+# IR schema validation (graphrag_stage1.validate).
+validation = [
+    "jsonschema>=4.18",
+]
 dev = [
     "pytest>=8",
+    "jsonschema>=4.18",
 ]
 
 [tool.setuptools]
@@ -33,6 +38,10 @@ dev = [
 # or the tests.
 packages = ["graphrag_stage1"]
 
+[tool.setuptools.package-data]
+# Ship the versioned IR JSON Schemas inside the wheel.
+graphrag_stage1 = ["schemas/*.json"]
+
 [tool.pytest.ini_options]
 # Tests live at the repo root and import the installed/importable package.
-testpaths = ["test_pipeline.py", "test_stage3.py"]
+testpaths = ["test_pipeline.py", "test_stage3.py", "test_schemas.py"]

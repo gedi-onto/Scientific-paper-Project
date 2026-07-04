@@ -34,6 +34,8 @@ _EXPORTS = {
     "OntologyManager": "ontology_manager",
     "LLMClient": "llm",
     "OllamaClient": "llm",
+    "validate": "validation",
+    "SchemaValidationError": "validation",
 }
 
 __all__ = ["__version__", *_EXPORTS]

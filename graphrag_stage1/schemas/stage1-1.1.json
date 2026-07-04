@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://graphrag-stage1/schemas/stage1-1.1.json",
+  "title": "Stage 1 Knowledge Artifact Graph (KAG) output",
+  "description": "Envelope emitted by process_paragraph / run_pipeline['stage1']. pipeline_version 1.1. Additional properties are allowed for forward compatibility; enums encode hard contract guarantees.",
+  "type": "object",
+  "required": ["stage", "pipeline_version", "model", "generated_at", "paragraph_id", "statements", "relations", "audit"],
+  "properties": {
+    "stage": { "const": "stage_1_information_artifact_analysis" },
+    "pipeline_version": { "const": "1.1" },
+    "model": { "type": "string", "description": "client.model_id that produced this output" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "paragraph_id": { "type": "string" },
+    "source_metadata": { "type": "object" },
+    "paragraph": { "type": "string" },
+    "statements": { "type": "array", "items": { "$ref": "#/$defs/statement" } },
+    "relations": { "type": "array", "items": { "$ref": "#/$defs/discourse_edge" } },
+    "audit": { "type": "object" }
+  },
+  "$defs": {
+    "statement": {
+      "type": "object",
+      "required": ["id", "text", "provenance", "facets", "arguments", "confidence"],
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "decomposition_text": { "type": "string" },
+        "recovered": { "type": "boolean" },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "fidelity": { "type": "object" },
+        "predicate": { "type": ["string", "object", "null"] },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["role", "text"],
+            "properties": {
+              "role": { "type": "string" },
+              "text": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "facets": { "$ref": "#/$defs/facets" },
+        "cues": { "type": "object" },
+        "confidence": {
+          "type": "object",
+          "required": ["overall"],
+          "properties": {
+            "overall": { "type": "number", "minimum": 0, "maximum": 1 },
+            "method": { "type": "string" }
+          }
+        },
+        "reason": { "type": "string" }
+      }
+    },
+    "facets": {
+      "type": "object",
+      "description": "Orthogonal typing axes (DESIGN.md section 3). Each enum is a hard guarantee kept in sync with the Python constants by test_schemas.",
+      "required": ["role", "proposition_type", "relation", "modality", "attribution", "certainty", "polarity", "has_measurement"],
+      "properties": {
+        "role": { "enum": ["CONTENT", "NOISE", "METADATA", "REFERENCE", "FIGURE", "TABLE", "EQUATION", "CAPTION"] },
+        "proposition_type": { "enum": ["DEFINITION", "CLASSIFICATION", "PROPERTY", "MEASUREMENT", "RELATION", "PROCESS", "METHOD", "EVENT"] },
+        "relation": { "enum": ["NONE", "CORRELATION", "CAUSATION", "MECHANISM", "COMPARISON", "PART_OF", "IS_A", "DEPENDENCY", "TEMPORAL_ORDER"] },
+        "modality": { "enum": ["ASSERTED", "OBSERVED", "MEASURED", "PREDICTED", "HYPOTHESIZED", "ASSUMED", "DEFINED", "REQUIRED"] },
+        "attribution": { "enum": ["PRESENT_WORK", "PRIOR_WORK", "MODEL_THEORY", "DATA", "THIRD_PARTY", "UNKNOWN"] },
+        "certainty": { "enum": ["CERTAIN", "LIKELY", "POSSIBLE", "UNCERTAIN"] },
+        "polarity": { "enum": ["POSITIVE", "NEGATED"] },
+        "has_measurement": { "type": "boolean" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["paragraph_id", "char_start", "char_end", "verbatim"],
+      "properties": {
+        "paragraph_id": { "type": "string" },
+        "document_id": { "type": ["string", "null"] },
+        "page": { "type": ["integer", "null"] },
+        "source_uri": { "type": ["string", "null"] },
+        "char_start": { "type": "integer", "minimum": 0 },
+        "char_end": { "type": "integer", "minimum": 0 },
+        "verbatim": { "type": "string" }
+      }
+    },
+    "discourse_edge": {
+      "type": "object",
+      "required": ["from", "to", "type"],
+      "properties": {
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "type": { "enum": ["EXPLANATION", "CAUSE", "EVIDENCE", "SUPPORT", "CONTRAST", "CONCESSION", "CONDITION", "ELABORATION", "BACKGROUND", "CONTRADICTION"] }
+      }
+    }
+  }
+}
