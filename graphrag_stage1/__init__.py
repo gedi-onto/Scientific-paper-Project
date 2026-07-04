@@ -27,6 +27,7 @@ __version__ = "0.1.0"
 # that `import graphrag_stage1` never imports rdflib/pyshacl (Stage 3 only).
 _EXPORTS = {
     "run_pipeline": "pipeline",
+    "run_paper": "pipeline",
     "process_paragraph": "stage1_classifier",
     "stage2_pipeline": "stage2_semantic_frames",
     "stage3_pipeline": "stage3_ontology_mapper",
@@ -34,6 +35,7 @@ _EXPORTS = {
     "OntologyManager": "ontology_manager",
     "LLMClient": "llm",
     "OllamaClient": "llm",
+    "BoundedClient": "llm",
     "validate": "validation",
     "SchemaValidationError": "validation",
 }

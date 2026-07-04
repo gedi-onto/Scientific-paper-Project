@@ -150,6 +150,36 @@ compatibility. A test keeps the schema enums in sync with the code constants.
 
 ---
 
+## 4b. Throughput: processing a whole paper fast
+
+Paragraphs are independent, so process them in parallel with `run_paper`. Total
+in-flight model calls are capped globally by a `BoundedClient` sized to
+`max_concurrency`, so you saturate your provider's rate limit without exceeding
+it — this is the lever for a per-paper latency target.
+
+```python
+from graphrag_stage1 import run_paper
+
+paras = [{"text": p, "source_metadata": {...}} for p in paragraphs_of_the_pdf]
+results = run_paper(
+    paras,
+    client=MyClient(),
+    max_concurrency=16,     # = your provider's safe concurrent-request budget
+    stage2_concurrency=6,   # per-paragraph statement fan-out (same global cap applies)
+    on_result=lambda i, r: ...,   # optional: stream/checkpoint as each finishes
+)
+# results are aligned to input order; a failed paragraph yields {"error": ...}
+# instead of aborting the paper.
+```
+
+**Ballpark:** a ~50-paragraph paper is ~250-400 model calls. Serially that's
+~10-15 min; with `run_paper` at `max_concurrency=16` on a hosted API
+(~2.5 s/call) it lands around **~50-70 s**. Wall-clock ≈
+`(total_calls x per_call_latency) / max_concurrency`, so scale `max_concurrency`
+to your rate limit to hit a target. On a **single local GPU** concurrency does
+not add throughput (the GPU serializes), so a sub-2-minute paper needs a
+scalable/hosted endpoint.
+
 ## 5. Operational notes
 
 - **No hidden I/O.** Importing the package and running the stages performs no disk

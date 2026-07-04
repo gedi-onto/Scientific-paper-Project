@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
 import time
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
@@ -131,3 +132,34 @@ def resolved_model_name(client: LLMClient, stronger: bool = False) -> str:
     if callable(resolver):
         return resolver(stronger)
     return client.model_id
+
+
+class BoundedClient:
+    """Wrap any ``LLMClient`` to cap the number of concurrent ``complete`` calls.
+
+    When paragraphs and statements are processed in parallel, the total number
+    of in-flight model calls is ``paragraph_workers x statement_workers`` -- easy
+    to blow past a provider's rate limit. Wrapping the client in a ``BoundedClient``
+    enforces one global ceiling regardless of how wide the pipeline fans out, so
+    you can parallelize freely and still respect the limit.
+
+        client = BoundedClient(MyClient(), max_concurrency=16)
+    """
+
+    def __init__(self, inner: LLMClient, max_concurrency: int):
+        if max_concurrency < 1:
+            raise ValueError("max_concurrency must be >= 1")
+        self._inner = inner
+        self._semaphore = threading.Semaphore(max_concurrency)
+        self.max_concurrency = max_concurrency
+
+    @property
+    def model_id(self) -> str:
+        return self._inner.model_id
+
+    def resolved_model(self, stronger: bool = False) -> str:
+        return resolved_model_name(self._inner, stronger)
+
+    def complete(self, prompt: str, schema: dict, *, stronger: bool = False) -> dict:
+        with self._semaphore:
+            return self._inner.complete(prompt, schema, stronger=stronger)

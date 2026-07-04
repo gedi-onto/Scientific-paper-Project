@@ -9,9 +9,10 @@ stays unimported otherwise.
 
 from __future__ import annotations
 
-from typing import Any
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Callable, Iterable
 
-from .llm import LLMClient
+from .llm import BoundedClient, LLMClient
 from .stage1_classifier import process_paragraph
 from .stage2_semantic_frames import stage2_pipeline
 
@@ -23,6 +24,7 @@ def run_pipeline(
     paragraph_id: str = "p1",
     source_metadata: dict | None = None,
     ontology: Any | None = None,
+    stage2_concurrency: int | None = None,
 ) -> dict:
     """Run Stage 1 -> Stage 2 (-> Stage 3 if ``ontology`` given) on one paragraph.
 
@@ -43,10 +45,77 @@ def run_pipeline(
     stage1 = process_paragraph(
         paragraph, paragraph_id=paragraph_id, source_metadata=source_metadata, client=client
     )
-    stage2 = stage2_pipeline(stage1, client=client)
+    stage2 = stage2_pipeline(stage1, client=client, concurrency=stage2_concurrency)
     result = {"stage1": stage1, "stage2": stage2}
     if ontology is not None:
         from .stage3_ontology_mapper import stage3_pipeline  # rdflib only if asked
 
         result["stage3"] = stage3_pipeline(stage2, ontology)
     return result
+
+
+def run_paper(
+    paragraphs: Iterable[dict],
+    *,
+    client: LLMClient,
+    max_concurrency: int = 8,
+    stage2_concurrency: int = 4,
+    ontology: Any | None = None,
+    on_result: Callable[[int, dict], None] | None = None,
+) -> list[dict]:
+    """Process a whole document's paragraphs in parallel, order-preserving.
+
+    Paragraphs are independent, so they run concurrently. Total in-flight model
+    calls are capped by wrapping ``client`` in a
+    :class:`~graphrag_stage1.llm.BoundedClient` sized to ``max_concurrency`` --
+    set that to your provider's safe concurrent-request budget and it holds no
+    matter how wide the fan-out. This is the main lever for hitting a per-paper
+    latency target on a scalable (hosted / multi-replica) endpoint.
+
+    Args:
+        paragraphs: iterable of dicts, each ``{"text": str, "paragraph_id"?: str,
+            "source_metadata"?: dict}``. Order is preserved in the result.
+        client: your LLMClient. Wrapped in a BoundedClient unless it already is.
+        max_concurrency: global ceiling on concurrent model calls (rate-limit knob).
+        stage2_concurrency: per-paragraph statement fan-out (bounded by the same
+            global ceiling).
+        ontology: optional OntologyManager to also run Stage 3 per paragraph.
+        on_result: optional callback ``(index, result)`` invoked as each paragraph
+            finishes (e.g. to stream / checkpoint); called from worker threads.
+
+    Returns:
+        A list aligned to input order. Each item is the ``run_pipeline`` result,
+        or ``{"paragraph_id", "error", "error_type"}`` if that paragraph failed
+        (one failure never aborts the paper).
+    """
+    items = list(paragraphs)
+    bounded = client if isinstance(client, BoundedClient) else BoundedClient(client, max_concurrency)
+    results: list[dict] = [None] * len(items)  # type: ignore[list-item]
+
+    def process(index: int, record: dict) -> None:
+        pid = record.get("paragraph_id") or f"p{index + 1}"
+        try:
+            results[index] = run_pipeline(
+                record["text"],
+                client=bounded,
+                paragraph_id=pid,
+                source_metadata=record.get("source_metadata"),
+                ontology=ontology,
+                stage2_concurrency=stage2_concurrency,
+            )
+        except Exception as exc:  # one bad paragraph must not sink the paper
+            results[index] = {
+                "paragraph_id": pid,
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+            }
+        if on_result is not None:
+            on_result(index, results[index])
+
+    if items:
+        with ThreadPoolExecutor(
+            max_workers=min(max_concurrency, len(items)), thread_name_prefix="paper"
+        ) as executor:
+            for index, record in enumerate(items):
+                executor.submit(process, index, record)
+    return results

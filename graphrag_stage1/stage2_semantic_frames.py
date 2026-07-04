@@ -1234,10 +1234,13 @@ def extract_with_routing(statement: dict, stage1_output: dict, client: LLMClient
     return item
 
 
-def stage2_pipeline(stage1_output: dict, client: LLMClient = None) -> dict:
+def stage2_pipeline(
+    stage1_output: dict, client: LLMClient = None, concurrency: int = None
+) -> dict:
     client = client or default_client()
+    concurrency = STAGE2_CONCURRENCY if concurrency is None else max(1, concurrency)
     statements = stage1_output.get("statements", [])
-    if STAGE2_CONCURRENCY == 1 or len(statements) <= 1:
+    if concurrency == 1 or len(statements) <= 1:
         frames = [
             extract_with_routing(statement, stage1_output, client)
             for statement in statements
@@ -1249,7 +1252,7 @@ def stage2_pipeline(stage1_output: dict, client: LLMClient = None) -> dict:
         def extract_statement(statement: dict) -> dict:
             return extract_with_routing(statement, stage1_output, client)
 
-        worker_count = min(STAGE2_CONCURRENCY, len(statements))
+        worker_count = min(concurrency, len(statements))
         with ThreadPoolExecutor(
             max_workers=worker_count,
             thread_name_prefix="stage2",
@@ -1274,7 +1277,7 @@ def stage2_pipeline(stage1_output: dict, client: LLMClient = None) -> dict:
             "frame_count": len(frames),
             "statements_processed": len(statements),
             "all_statements_processed": len(frames) == len(statements),
-            "concurrency": min(STAGE2_CONCURRENCY, max(1, len(statements))),
+            "concurrency": min(concurrency, max(1, len(statements))),
             "automation_action_counts": action_counts,
         },
     }
