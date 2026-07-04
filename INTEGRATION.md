@@ -10,6 +10,27 @@ practical integration contract.
 
 ---
 
+## 0. Quick start (the whole thing in ~5 lines)
+
+```python
+from graphrag_stage1 import AnthropicClient, analyze_paper, validate
+
+results = analyze_paper(
+    open("paper.txt").read(),
+    client=AnthropicClient(),          # built-in; reads ANTHROPIC_API_KEY
+    max_concurrency=16,
+    domain_ontology="my_domain.owl",   # core ontologies + your domain, loaded for you
+)
+for r in results:                      # one entry per paragraph, in order
+    validate(r["stage1"])              # optional schema check
+    ...                                # r["stage1"], r["stage2"], r["stage3"]
+```
+
+`AnthropicClient` / `OpenAIClient` are built in, so you write no model boilerplate
+(`pip install "graphrag-stage1[anthropic]"` or `[openai]`). The sections below
+explain each piece and how to plug in a different model. A runnable version is in
+[examples/quickstart.py](examples/quickstart.py).
+
 ## 1. Install
 
 ```bash

@@ -9,12 +9,23 @@ stays unimported otherwise.
 
 from __future__ import annotations
 
+import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Iterable
 
 from .llm import BoundedClient, LLMClient
 from .stage1_classifier import process_paragraph
 from .stage2_semantic_frames import stage2_pipeline
+
+
+def split_paragraphs(text: str) -> list[dict]:
+    """Split a document into paragraph records on blank lines.
+
+    A convenience for plain text / already-extracted content. Real PDF or LaTeX
+    layout parsing is a separate upstream step; feed this pre-extracted text.
+    """
+    chunks = re.split(r"\n\s*\n", text)
+    return [{"text": chunk.strip()} for chunk in chunks if chunk.strip()]
 
 
 def run_pipeline(
@@ -119,3 +130,36 @@ def run_paper(
             for index, record in enumerate(items):
                 executor.submit(process, index, record)
     return results
+
+
+def analyze_paper(
+    text: str,
+    *,
+    client: LLMClient,
+    max_concurrency: int = 8,
+    stage2_concurrency: int = 4,
+    ontology: Any | None = None,
+    domain_ontology: str | None = None,
+    ontology_root: str = "ontologies",
+    on_result: Callable[[int, dict], None] | None = None,
+) -> list[dict]:
+    """One call: raw paper text in, structured per-paragraph results out.
+
+    Splits ``text`` into paragraphs and runs them in parallel via
+    :func:`run_paper`. For Stage 3 ontology mapping, pass either a prebuilt
+    ``ontology`` (an ``OntologyManager``) or a ``domain_ontology`` path -- in the
+    latter case the core ontologies under ``ontology_root`` plus your domain file
+    are loaded for you.
+    """
+    if ontology is None and domain_ontology is not None:
+        from .ontology_manager import OntologyManager  # rdflib only if asked
+
+        ontology = OntologyManager(ontology_root).load_all(domain_ontology=domain_ontology)
+    return run_paper(
+        split_paragraphs(text),
+        client=client,
+        max_concurrency=max_concurrency,
+        stage2_concurrency=stage2_concurrency,
+        ontology=ontology,
+        on_result=on_result,
+    )

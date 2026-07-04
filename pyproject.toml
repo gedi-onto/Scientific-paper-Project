@@ -27,6 +27,13 @@ ontology = [
 validation = [
     "jsonschema>=4.18",
 ]
+# Ready-made provider clients (graphrag_stage1.clients).
+anthropic = [
+    "anthropic>=0.40",
+]
+openai = [
+    "openai>=1.40",
+]
 dev = [
     "pytest>=8",
     "jsonschema>=4.18",
@@ -44,4 +51,4 @@ graphrag_stage1 = ["schemas/*.json"]
 
 [tool.pytest.ini_options]
 # Tests live at the repo root and import the installed/importable package.
-testpaths = ["test_pipeline.py", "test_stage3.py", "test_schemas.py", "test_throughput.py"]
+testpaths = ["test_pipeline.py", "test_stage3.py", "test_schemas.py", "test_throughput.py", "test_clients.py"]
