@@ -37,6 +37,7 @@ def run_pipeline(
     source_metadata: dict | None = None,
     ontology: Any | None = None,
     stage2_concurrency: int | None = None,
+    stage2_batch_size: int | None = None,
 ) -> dict:
     """Run Stage 1 -> Stage 2 (-> Stage 3 if ``ontology`` given) on one paragraph.
 
@@ -62,7 +63,10 @@ def run_pipeline(
         paragraph, paragraph_id=paragraph_id, source_metadata=source_metadata, client=client
     )
     stage2 = stage2_pipeline(
-        stage1, client=stage2_client or client, concurrency=stage2_concurrency
+        stage1,
+        client=stage2_client or client,
+        concurrency=stage2_concurrency,
+        batch_size=stage2_batch_size,
     )
     result = {"stage1": stage1, "stage2": stage2}
     if ontology is not None:
@@ -79,6 +83,7 @@ def run_paper(
     stage2_client: LLMClient | None = None,
     max_concurrency: int = 8,
     stage2_concurrency: int = 4,
+    stage2_batch_size: int | None = None,
     ontology: Any | None = None,
     on_result: Callable[[int, dict], None] | None = None,
 ) -> list[dict]:
@@ -132,6 +137,7 @@ def run_paper(
                 source_metadata=record.get("source_metadata"),
                 ontology=ontology,
                 stage2_concurrency=stage2_concurrency,
+                stage2_batch_size=stage2_batch_size,
             )
         except Exception as exc:  # one bad paragraph must not sink the paper
             results[index] = {
@@ -158,6 +164,7 @@ def analyze_paper(
     stage2_client: LLMClient | None = None,
     max_concurrency: int = 8,
     stage2_concurrency: int = 4,
+    stage2_batch_size: int | None = None,
     ontology: Any | None = None,
     domain_ontology: str | None = None,
     ontology_root: str = "ontologies",
@@ -189,6 +196,7 @@ def analyze_paper(
         stage2_client=stage2_client,
         max_concurrency=max_concurrency,
         stage2_concurrency=stage2_concurrency,
+        stage2_batch_size=stage2_batch_size,
         ontology=ontology,
         on_result=on_result,
     )

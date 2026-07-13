@@ -293,6 +293,41 @@ class BatchingTests(unittest.TestCase):
         for item in out["frames"]:
             self.assertNotIn("batched", item["processing"])
 
+    def test_flat_cloud_style_response_is_renested(self):
+        # Ollama Cloud does not grammar-constrain output: qwen3-coder:480b-cloud returns
+        # the semantic slots at the TOP level with an empty "semantic_frame", which used
+        # to fail every frame for missing required fields. It must be re-nested in Python.
+        stmts = self._statements(2)
+        s1 = {"paragraph_id": "p1", "paragraph": "x", "statements": stmts, "relations": []}
+
+        class FlatCloudClient(RecordingClient):
+            def complete(self, prompt, schema, *, stronger=False):
+                self.calls += 1
+                return {"frames": [
+                    {
+                        "statement_id": s["id"],
+                        "semantic_frame": {},          # empty, as the cloud model sends
+                        "primary_entity": f"marker {i}",  # slots at the top level
+                        "measurement_value": str(i),
+                        "unit": "percent",
+                        "property": None, "value": None, "process": None,
+                        "condition": None, "basis": None, "context": None,
+                        "secondary_entity": None,
+                        "confidence": 0.9,
+                    }
+                    for i, s in enumerate(stmts, start=1)
+                ]}
+
+        out = stage2_pipeline(s1, client=FlatCloudClient(), concurrency=1, batch_size=2)
+        self.assertEqual(len(out["frames"]), 2)
+        for item in out["frames"]:
+            semantic = item["stage2_frame"]["semantic_frame"]
+            self.assertTrue(
+                semantic.get("primary_entity"),
+                "top-level slots must be lifted into semantic_frame",
+            )
+            self.assertEqual(item["processing"]["batched"], 2)
+
     def test_batch_size_zero_keeps_the_original_path(self):
         stmts = self._statements(3)
         s1 = {"paragraph_id": "p1", "paragraph": "x", "statements": stmts, "relations": []}

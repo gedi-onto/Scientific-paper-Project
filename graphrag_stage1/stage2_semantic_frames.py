@@ -1363,20 +1363,44 @@ def extract_deterministic_frame(statement: dict, stage1_output: dict) -> dict:
     }
 
 
-def _batch_frame_schema() -> dict:
-    """{"frames": [<frame>, ...]} -- the per-frame schema plus its statement_id.
+# The semantic_frame slots the model actually has to supply (everything else in a
+# frame is recomputed by postprocess_frame / enrich_semantic_frame).
+SEMANTIC_SLOTS = (
+    "primary_entity", "secondary_entity", "property", "value", "process",
+    "condition", "basis", "context", "measurement_value", "unit",
+)
 
-    frame_type / validation / ontology_readiness are omitted: postprocess_frame and
-    deterministic_validation overwrite them anyway, so making the model emit them in a
-    batch would burn output tokens (the dominant cost) for values that get discarded.
+
+def _batch_frame_schema() -> dict:
+    """{"frames": [<flat frame>, ...]} -- deliberately FLAT, with no nested objects.
+
+    Two reasons the semantic slots sit at the top level of each frame rather than
+    inside a "semantic_frame" object:
+
+    * Ollama Cloud does not grammar-constrain output the way local Ollama does -- the
+      schema is a hint there, not a constraint. Asked for a nested shape, cloud models
+      flatten it anyway and return an empty "semantic_frame", which silently fails
+      every frame for missing required fields. A flat schema is what they produce
+      naturally, so it works on both.
+    * The nesting is free to rebuild in Python (see _nest_batch_frame), and anything
+      Python can assemble should not be asked of the model.
+
+    frame_type / validation / ontology_readiness are omitted entirely: they are
+    overwritten downstream, so emitting them would burn output tokens -- the dominant
+    cost of a Stage 2 call -- on values that get discarded.
     """
-    frame = json.loads(json.dumps(FRAME_SCHEMA))  # deep copy
-    for discarded in ("frame_type", "validation", "ontology_readiness"):
-        frame["properties"].pop(discarded, None)
-    frame["required"] = [f for f in frame.get("required", []) if f not in
-                         ("frame_type", "validation", "ontology_readiness")]
-    frame["properties"]["statement_id"] = {"type": "string"}
-    frame["required"] = ["statement_id"] + frame["required"]
+    sf = FRAME_SCHEMA["properties"]["semantic_frame"]["properties"]
+    properties = {"statement_id": {"type": "string"}}
+    properties.update({slot: json.loads(json.dumps(sf[slot])) for slot in SEMANTIC_SLOTS})
+    for passthrough in ("candidate_entities", "candidate_relations", "reference_resolutions"):
+        properties[passthrough] = json.loads(json.dumps(FRAME_SCHEMA["properties"][passthrough]))
+    properties["confidence"] = json.loads(json.dumps(FRAME_SCHEMA["properties"]["confidence"]))
+
+    frame = {
+        "type": "object",
+        "properties": properties,
+        "required": ["statement_id", *SEMANTIC_SLOTS],
+    }
     return {
         "type": "object",
         "properties": {"frames": {"type": "array", "items": frame}},
@@ -1385,6 +1409,27 @@ def _batch_frame_schema() -> dict:
 
 
 BATCH_FRAME_SCHEMA = _batch_frame_schema()
+
+
+def _nest_batch_frame(flat: dict) -> dict:
+    """Rebuild the nested frame shape from a flat batched response.
+
+    Tolerates a model that nested it anyway (local Ollama does), so the same code
+    handles both a grammar-constrained local model and a loosely-steered cloud one.
+    """
+    nested = flat.get("semantic_frame")
+    semantic = dict(nested) if isinstance(nested, dict) and nested else {}
+    for slot in SEMANTIC_SLOTS:
+        if semantic.get(slot) in (None, "") and flat.get(slot) not in (None, ""):
+            semantic[slot] = flat[slot]
+        semantic.setdefault(slot, None)
+    return {
+        "semantic_frame": semantic,
+        "candidate_entities": flat.get("candidate_entities") or [],
+        "candidate_relations": flat.get("candidate_relations") or [],
+        "reference_resolutions": flat.get("reference_resolutions") or [],
+        "confidence": flat.get("confidence", 0.0) or 0.0,
+    }
 
 
 def extract_frames_batch(
@@ -1407,12 +1452,12 @@ def extract_frames_batch(
     items = []
     for index, statement in enumerate(statements):
         # Prefer id match; fall back to positional only if the model dropped the id.
-        frame = by_id.get(statement.get("id"))
-        if frame is None:
-            frame = frames[index] if isinstance(frames[index], dict) else None
-        if frame is None:
+        flat = by_id.get(statement.get("id"))
+        if flat is None:
+            flat = frames[index] if isinstance(frames[index], dict) else None
+        if flat is None:
             return None
-        frame.pop("statement_id", None)
+        frame = _nest_batch_frame(flat)
         artifact_type = derive_artifact_type(statement, stage1_output)
         items.append({
             "statement_id": statement.get("id"),
