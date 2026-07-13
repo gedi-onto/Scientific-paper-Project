@@ -15,6 +15,32 @@ from rdflib.namespace import OWL, XSD
 ONTOLOGY_SUFFIXES = {".owl", ".rdf", ".ttl", ".nt", ".n3", ".jsonld"}
 CORE_ONTOLOGIES = ("BFO", "IAO", "CCO")
 
+OBO = Namespace("http://purl.obolibrary.org/obo/")
+OBOINOWL = Namespace("http://www.geneontology.org/formats/oboInOwl#")
+
+# Every predicate that attaches a *name* to a class. SKOS alone is not enough: OBO
+# Foundry ontologies (INO, GO, ChEBI, PRO...) publish their synonyms under oboInOwl
+# and IAO_0000118 ("alternative term"), so a SKOS-only index cannot see them --
+# hundreds of usable aliases were being ignored.
+#
+# Only names that DENOTE THE SAME THING are indexed. hasBroadSynonym and
+# hasRelatedSynonym are deliberately loose in OBO ("related" can be a mere
+# association), and indexing them made previously-unique lookups ambiguous: the frame
+# type METHOD started matching several classes at once and failed to resolve at all,
+# costing 35 frames. Recall is worthless if it destroys precision on the terms that
+# already worked.
+LABEL_PREDICATES = (
+    RDFS.label,
+    SKOS.prefLabel,
+    SKOS.altLabel,
+    OBO.IAO_0000118,             # alternative term  (exact alias)
+    OBOINOWL.hasExactSynonym,    # exact alias
+)
+
+# Words that carry no ontological content -- stripped when hunting for the head term
+# of a noun phrase like "the Syk signaling pathway".
+_PHRASE_STOPWORDS = {"the", "a", "an", "this", "that", "these", "those", "its", "their"}
+
 
 def normalize_lookup(value: object) -> str:
     text = re.sub(r"[_\-]+", " ", str(value or "")).casefold()
@@ -162,7 +188,7 @@ class OntologyManager:
 
     def _labels(self, resource: URIRef) -> Iterable[str]:
         yield local_name(resource)
-        for predicate in (RDFS.label, SKOS.prefLabel, SKOS.altLabel):
+        for predicate in LABEL_PREDICATES:
             for label in self.graph.objects(resource, predicate):
                 yield str(label)
 
@@ -204,8 +230,29 @@ class OntologyManager:
         return next(iter(matches)) if len(matches) == 1 else None
 
     @staticmethod
-    def _lookup_result(index: dict[str, set[URIRef]], term: str) -> dict:
+    def _lookup_result(
+        index: dict[str, set[URIRef]], term: str, prefer_namespace: str | None = None
+    ) -> dict:
         matches = sorted(str(item) for item in index.get(normalize_lookup(term), set()))
+
+        # An ambiguous term can still be resolved when the caller knows which ontology
+        # *defines* the thing it is asking about. Frame types, for instance, are declared
+        # in the alignment ontology; "METHOD" also happens to be an alternative term for
+        # an unrelated IAO class, and without this the collision made a well-defined
+        # frame class unresolvable. Only a UNIQUE hit in the preferred namespace counts,
+        # so this disambiguates rather than guesses.
+        if len(matches) > 1 and prefer_namespace:
+            preferred = [m for m in matches if m.startswith(prefer_namespace)]
+            if len(preferred) == 1:
+                return {
+                    "term": term,
+                    "normalized_term": normalize_lookup(term),
+                    "status": "matched",
+                    "iri": preferred[0],
+                    "candidates": matches,
+                    "disambiguated_by": prefer_namespace,
+                }
+
         return {
             "term": term,
             "normalized_term": normalize_lookup(term),
@@ -214,8 +261,48 @@ class OntologyManager:
             "candidates": matches,
         }
 
-    def explain_class_lookup(self, term: str) -> dict:
-        return self._lookup_result(self.class_index, term)
+    def explain_class_lookup(self, term: str, prefer_namespace: str | None = None) -> dict:
+        return self._lookup_result(self.class_index, term, prefer_namespace)
+
+    def explain_class_head_lookup(self, term: str, min_tokens: int = 1) -> dict:
+        """Find the most specific class matching the HEAD of a noun phrase.
+
+        Exact matching alone is far too brittle for text: "Syk signaling pathway" never
+        equals the class "signaling pathway", so a real entity fails to type even though
+        the right class is loaded. English noun phrases put the head last and modifiers
+        first, so progressively drop leading modifiers and take the LONGEST label that
+        still matches -- the most specific class that is actually justified.
+
+            "the Syk signaling pathway"  ->  "signaling pathway"   (a real class)
+            "core driving genes"         ->  "genes"
+
+        The instance keeps its full surface form as its label; only its *type* is
+        generalised, which is exactly the correct ontological reading: a Syk signaling
+        pathway IS a signaling pathway.
+
+        Still exact per candidate substring (no fuzzy scoring), and ambiguous matches
+        are rejected, so an unrelated class cannot win.
+        """
+        tokens = normalize_lookup(term).split()
+        while tokens and tokens[0] in _PHRASE_STOPWORDS:
+            tokens = tokens[1:]
+        # Longest candidate first => most specific class wins.
+        for start in range(len(tokens)):
+            candidate = tokens[start:]
+            if len(candidate) < min_tokens:
+                break
+            result = self._lookup_result(self.class_index, " ".join(candidate))
+            if result["status"] == "matched":
+                result["matched_head"] = " ".join(candidate)
+                result["dropped_modifiers"] = " ".join(tokens[:start])
+                return result
+        return {
+            "term": term,
+            "normalized_term": normalize_lookup(term),
+            "status": "missing",
+            "iri": None,
+            "candidates": [],
+        }
 
     def explain_object_property_lookup(self, term: str) -> dict:
         return self._lookup_result(self.object_property_index, term)

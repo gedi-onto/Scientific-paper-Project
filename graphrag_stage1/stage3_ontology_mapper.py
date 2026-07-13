@@ -36,6 +36,13 @@ def lookup_first(lookup, terms: list[str]) -> Optional[URIRef]:
     return None
 
 
+# Stage 2 frame classes (ObservationFrame, MethodFrame, ...) are DECLARED here, so a
+# frame-type lookup that collides with an unrelated class elsewhere resolves in favour
+# of this namespace. Without it, "METHOD" was ambiguous against an IAO class that
+# carries "method" as an alternative term, and the frame failed to map at all.
+ALIGNMENT_NAMESPACE = "https://w3id.org/graphrag/alignment/"
+
+
 def frame_class_terms(frame_type: str) -> list[str]:
     spaced = str(frame_type or "").replace("_", " ")
     return [frame_type, spaced, f"{spaced} statement", f"{spaced} frame"]
@@ -208,7 +215,7 @@ class Stage3OntologyMapper:
             }
 
         frame_lookups = [
-            self.manager.explain_class_lookup(term)
+            self.manager.explain_class_lookup(term, prefer_namespace=ALIGNMENT_NAMESPACE)
             for term in frame_class_terms(str(frame_type or ""))
         ]
         frame_match = next((item for item in frame_lookups if item["status"] == "matched"), None)

@@ -42,17 +42,48 @@ class EntityMapper:
         self.instances = InstanceGenerator(manager)
 
     def _select_class(self, semantic_type: str, canonical: str) -> dict:
+        """Pick the most SPECIFIC ontology class for an entity.
+
+        Order matters, and it used to be backwards. The semantic-type registry was
+        consulted first, but ``SemanticTyper`` has no domain vocabulary -- it types
+        almost everything as INFORMATION_CONTENT_ENTITY, which *is* in the registry.
+        So the registry short-circuited on a generic catch-all and the domain lookup
+        below became dead code: on a real paper, 424 of 430 entities were typed from
+        the registry and not one from the loaded ontologies, leaving 88% of the graph
+        as ``IAO_0000030``.
+
+        The entity's own name matching an ontology label exactly is strictly more
+        informative than a guess from its coarse type, so that is tried first. This is
+        still an EXACT match -- fuzzy label ranking remains diagnostic only, so an
+        unrelated class cannot win.
+        """
         attempts = []
-        preferred = SEMANTIC_CLASS_IRIS.get(semantic_type)
         loaded_classes = {item for values in self.manager.class_index.values() for item in values}
-        if preferred and URIRef(preferred) in loaded_classes:
-            return {"iri": preferred, "method": "semantic_type_registry", "confidence": 0.95, "attempts": attempts}
-        # A unique exact domain label is a safe specialization of the semantic
-        # type. Fuzzy label ranking is deliberately not used for selection.
+
+        # 1. The entity's own name, matched exactly against a loaded class label.
         domain_exact = self.manager.explain_class_lookup(canonical)
         attempts.append(domain_exact)
         if domain_exact["status"] == "matched":
-            return {"iri": domain_exact["iri"], "method": "semantic_type_domain_exact", "confidence": 0.9, "attempts": attempts}
+            return {"iri": domain_exact["iri"], "method": "domain_exact",
+                    "confidence": 0.95, "attempts": attempts}
+
+        # 2. The head of the noun phrase: "Syk signaling pathway" IS a "signaling
+        #    pathway". Still an exact match per candidate substring, just not anchored
+        #    to the whole phrase -- which is what made the lookup useless on real text.
+        head = self.manager.explain_class_head_lookup(canonical, min_tokens=2)
+        attempts.append(head)
+        if head["status"] == "matched":
+            return {"iri": head["iri"], "method": "domain_head",
+                    "confidence": 0.85, "attempts": attempts,
+                    "matched_head": head.get("matched_head")}
+
+        # 3. The coarse semantic type, via the registry.
+        preferred = SEMANTIC_CLASS_IRIS.get(semantic_type)
+        if preferred and URIRef(preferred) in loaded_classes:
+            return {"iri": preferred, "method": "semantic_type_registry",
+                    "confidence": 0.9, "attempts": attempts}
+
+        # 3. Ontology terms associated with that semantic type.
         for term in self.typer.ontology_terms(semantic_type):
             lookup = self.manager.explain_class_lookup(term)
             attempts.append(lookup)
