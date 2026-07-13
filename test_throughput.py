@@ -84,6 +84,43 @@ class RunPaperTests(unittest.TestCase):
         run_paper(paragraphs(6), client=bounded, max_concurrency=99, stage2_concurrency=4)
         self.assertLessEqual(client.peak, 2)
 
+    def test_stage2_client_receives_stage2_calls(self):
+        stage1_client = InstrumentedClient(delay=0)
+        stage2_client = InstrumentedClient(delay=0)
+        results = run_paper(
+            paragraphs(3), client=stage1_client, stage2_client=stage2_client, max_concurrency=4
+        )
+        self.assertEqual(len(results), 3)
+        self.assertTrue(all("stage2" in r for r in results))
+        # Both stages ran, each on its own client.
+        self.assertGreater(stage1_client.calls, 0)
+        self.assertGreater(stage2_client.calls, 0)
+
+    def test_stage2_client_shares_global_concurrency_cap(self):
+        tracker = {"lock": threading.Lock(), "inflight": 0, "peak": 0}
+
+        class TrackedClient(InstrumentedClient):
+            def complete(self, prompt, schema, *, stronger=False):
+                with tracker["lock"]:
+                    tracker["inflight"] += 1
+                    tracker["peak"] = max(tracker["peak"], tracker["inflight"])
+                try:
+                    return super().complete(prompt, schema, stronger=stronger)
+                finally:
+                    with tracker["lock"]:
+                        tracker["inflight"] -= 1
+
+        cap = 3
+        run_paper(
+            paragraphs(8),
+            client=TrackedClient(delay=0.02),
+            stage2_client=TrackedClient(delay=0.02),
+            max_concurrency=cap,
+            stage2_concurrency=4,
+        )
+        # Combined in-flight calls across BOTH clients must respect the one cap.
+        self.assertLessEqual(tracker["peak"], cap)
+
     def test_one_bad_paragraph_does_not_sink_the_paper(self):
         client = InstrumentedClient(delay=0)
         docs = paragraphs(3)

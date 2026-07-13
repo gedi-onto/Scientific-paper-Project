@@ -32,6 +32,7 @@ def run_pipeline(
     paragraph: str,
     *,
     client: LLMClient | None = None,
+    stage2_client: LLMClient | None = None,
     paragraph_id: str = "p1",
     source_metadata: dict | None = None,
     ontology: Any | None = None,
@@ -42,6 +43,10 @@ def run_pipeline(
     Args:
         paragraph: raw source text.
         client: LLM transport; defaults to a local Ollama client per stage.
+        stage2_client: optional separate transport for Stage 2 frame extraction.
+            Stage 2 is schema-constrained form-filling, so a smaller / faster
+            model than Stage 1's often suffices — the main latency lever for
+            local setups. Defaults to ``client``.
         paragraph_id: stable id used in provenance / node ids.
         source_metadata: optional document_id / page / source_uri, carried into
             every statement's provenance.
@@ -56,7 +61,9 @@ def run_pipeline(
     stage1 = process_paragraph(
         paragraph, paragraph_id=paragraph_id, source_metadata=source_metadata, client=client
     )
-    stage2 = stage2_pipeline(stage1, client=client, concurrency=stage2_concurrency)
+    stage2 = stage2_pipeline(
+        stage1, client=stage2_client or client, concurrency=stage2_concurrency
+    )
     result = {"stage1": stage1, "stage2": stage2}
     if ontology is not None:
         from .stage3_ontology_mapper import stage3_pipeline  # rdflib only if asked
@@ -69,6 +76,7 @@ def run_paper(
     paragraphs: Iterable[dict],
     *,
     client: LLMClient,
+    stage2_client: LLMClient | None = None,
     max_concurrency: int = 8,
     stage2_concurrency: int = 4,
     ontology: Any | None = None,
@@ -87,6 +95,9 @@ def run_paper(
         paragraphs: iterable of dicts, each ``{"text": str, "paragraph_id"?: str,
             "source_metadata"?: dict}``. Order is preserved in the result.
         client: your LLMClient. Wrapped in a BoundedClient unless it already is.
+        stage2_client: optional separate (typically smaller / faster) client for
+            Stage 2 frame extraction. Shares ``client``'s global concurrency
+            ceiling, so total in-flight calls never exceed ``max_concurrency``.
         max_concurrency: global ceiling on concurrent model calls (rate-limit knob).
         stage2_concurrency: per-paragraph statement fan-out (bounded by the same
             global ceiling).
@@ -101,6 +112,13 @@ def run_paper(
     """
     items = list(paragraphs)
     bounded = client if isinstance(client, BoundedClient) else BoundedClient(client, max_concurrency)
+    bounded_stage2: BoundedClient | None = None
+    if stage2_client is not None:
+        bounded_stage2 = (
+            stage2_client
+            if isinstance(stage2_client, BoundedClient)
+            else BoundedClient(stage2_client, max_concurrency, share_limit_with=bounded)
+        )
     results: list[dict] = [None] * len(items)  # type: ignore[list-item]
 
     def process(index: int, record: dict) -> None:
@@ -109,6 +127,7 @@ def run_paper(
             results[index] = run_pipeline(
                 record["text"],
                 client=bounded,
+                stage2_client=bounded_stage2,
                 paragraph_id=pid,
                 source_metadata=record.get("source_metadata"),
                 ontology=ontology,
@@ -136,6 +155,7 @@ def analyze_paper(
     text: str,
     *,
     client: LLMClient,
+    stage2_client: LLMClient | None = None,
     max_concurrency: int = 8,
     stage2_concurrency: int = 4,
     ontology: Any | None = None,
@@ -150,6 +170,14 @@ def analyze_paper(
     ``ontology`` (an ``OntologyManager``) or a ``domain_ontology`` path -- in the
     latter case the core ontologies under ``ontology_root`` plus your domain file
     are loaded for you.
+
+    ``stage2_client`` lets Stage 2 (schema-constrained frame extraction) run on
+    a smaller, faster model than Stage 1 -- the main per-paper latency lever on
+    a local single-GPU setup::
+
+        analyze_paper(text,
+                      client=OllamaClient(model="qwen3:8b"),
+                      stage2_client=OllamaClient(model="qwen3:4b"))
     """
     if ontology is None and domain_ontology is not None:
         from .ontology_manager import OntologyManager  # rdflib only if asked
@@ -158,6 +186,7 @@ def analyze_paper(
     return run_paper(
         split_paragraphs(text),
         client=client,
+        stage2_client=stage2_client,
         max_concurrency=max_concurrency,
         stage2_concurrency=stage2_concurrency,
         ontology=ontology,

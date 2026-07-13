@@ -144,14 +144,27 @@ class BoundedClient:
     you can parallelize freely and still respect the limit.
 
         client = BoundedClient(MyClient(), max_concurrency=16)
+
+    Pass ``share_limit_with`` to make two clients (e.g. a Stage 1 and a Stage 2
+    model) draw from one shared ceiling instead of each getting their own.
     """
 
-    def __init__(self, inner: LLMClient, max_concurrency: int):
+    def __init__(
+        self,
+        inner: LLMClient,
+        max_concurrency: int,
+        *,
+        share_limit_with: "BoundedClient | None" = None,
+    ):
         if max_concurrency < 1:
             raise ValueError("max_concurrency must be >= 1")
         self._inner = inner
-        self._semaphore = threading.Semaphore(max_concurrency)
-        self.max_concurrency = max_concurrency
+        if share_limit_with is not None:
+            self._semaphore = share_limit_with._semaphore
+            self.max_concurrency = share_limit_with.max_concurrency
+        else:
+            self._semaphore = threading.Semaphore(max_concurrency)
+            self.max_concurrency = max_concurrency
 
     @property
     def model_id(self) -> str:
