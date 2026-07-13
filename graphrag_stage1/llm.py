@@ -24,6 +24,25 @@ from typing import Protocol, runtime_checkable
 import requests
 
 _THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
+_FENCE_RE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$", re.IGNORECASE)
+
+
+def _extract_json(raw: str) -> str:
+    """Pull the JSON object out of a response that may not be pure JSON.
+
+    Backends that grammar-constrain output (local Ollama) always return bare JSON and
+    this is a no-op. Backends that only *hint* at the schema (Ollama Cloud, most hosted
+    APIs) may wrap it in ```json fences or bracket it with prose, so fall back to the
+    outermost balanced {...} rather than failing the whole call.
+    """
+    text = _FENCE_RE.sub("", raw).strip()
+    if text.startswith("{"):
+        return text
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end > start:
+        return text[start:end + 1]
+    return text  # let json.loads raise -- the caller retries, then reports honestly
 
 
 @runtime_checkable
@@ -77,11 +96,28 @@ class OllamaClient:
             return self.stronger_model
         return self.model
 
+    def schema_is_enforced(self, model: str) -> bool:
+        """Does this model's backend actually grammar-constrain output to ``format``?
+
+        Local Ollama compiles the JSON schema into a decoding grammar, so off-schema
+        output is impossible. Ollama **Cloud** treats ``format`` as a hint only -- a
+        cloud model happily answers a schema-constrained call with prose ("u1: ...")
+        or with a flattened object. Detect that and restate the contract in the prompt.
+        """
+        return "-cloud" not in model and not model.endswith(":cloud")
+
     def complete(self, prompt: str, schema: dict, *, stronger: bool = False) -> dict:
         model = self.resolved_model(stronger)
         options: dict = {"temperature": self.temperature}
         if self.num_ctx:
             options["num_ctx"] = self.num_ctx
+        if not self.schema_is_enforced(model):
+            prompt = (
+                f"{prompt}\n\n"
+                "Respond with a single JSON object and NOTHING else -- no prose, no "
+                "explanation, no markdown code fences. It must validate against this "
+                f"JSON Schema exactly, including every required key:\n{json.dumps(schema)}"
+            )
         last_error: Exception | None = None
         for attempt in range(self.retries + 1):
             try:
@@ -100,7 +136,7 @@ class OllamaClient:
                 response.raise_for_status()
                 raw = response.json()["response"].strip()
                 raw = _THINK_RE.sub("", raw).strip()
-                return json.loads(raw)
+                return json.loads(_extract_json(raw))
             except (requests.RequestException, KeyError, ValueError) as exc:
                 last_error = exc
                 if attempt < self.retries:
