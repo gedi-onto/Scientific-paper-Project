@@ -1231,15 +1231,24 @@ def build_deterministic_frame(statement: dict, stage1_output: dict) -> dict:
     """
     arg1 = _stage1_argument(statement, "arg1")
     arg2 = _stage1_argument(statement, "arg2")
+    predicate = statement.get("predicate")
+    artifact_type = derive_artifact_type(statement, stage1_output)
     measurements = extract_measurements(statement.get("text", ""))
     first = measurements[0] if measurements else {}
+
+    # MECHANISM/METHOD define `process` as the mechanism/method process, and Stage 1
+    # defines `predicate` as the statement's main verb lemma -- the same thing, and
+    # grounded in the source, so _grounded() still gates it. `property` and `value`
+    # are NOT derivable this way (a CAUSAL_RELATION's `property` is the affected
+    # property, not the verb), so they are left for the model.
+    process = predicate if artifact_type in {"MECHANISM", "METHOD"} else None
 
     semantic = {
         "primary_entity": arg1,
         "secondary_entity": arg2,
         "property": None,
         "value": None,
-        "process": None,
+        "process": process,
         "condition": None,
         "basis": None,
         "context": None,

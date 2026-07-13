@@ -105,11 +105,26 @@ class DeterministicFrameTests(unittest.TestCase):
         self.assertEqual(semantic["measurement_value"], "24.8")
         self.assertIsNotNone(semantic["unit"])
 
-    def test_leaves_model_only_fields_unset(self):
+    def test_process_comes_from_the_stage1_predicate(self):
+        # MECHANISM defines `process` as the mechanism process; Stage 1's predicate
+        # is the statement's main verb lemma. Same thing, and grounded in the source.
         stmt = statement("The system aligns outputs.", "MECHANISM", arg1="system", predicate="align")
         semantic = build_deterministic_frame(stmt, stage1(stmt))["semantic_frame"]
-        # `process` needs semantic judgement -- the rule pass must not invent it.
-        for field in ("property", "value", "process", "condition", "basis", "context"):
+        self.assertEqual(semantic["process"], "align")
+
+    def test_leaves_model_only_fields_unset(self):
+        stmt = statement(
+            "Radiation drives inflammation.",
+            "CAUSAL_RELATION",
+            arg1="radiation",
+            arg2="inflammation",
+            predicate="drive",
+        )
+        semantic = build_deterministic_frame(stmt, stage1(stmt))["semantic_frame"]
+        # A CAUSAL_RELATION's `property` is the AFFECTED property, not the verb --
+        # deriving it from the predicate would put a wrong fact in the graph.
+        self.assertIsNone(semantic["property"], "predicate must never be used as `property`")
+        for field in ("value", "process", "condition", "basis", "context"):
             self.assertIsNone(semantic[field], f"{field} should be left for the model")
 
 
