@@ -60,6 +60,11 @@ class OllamaClient:
     timeout: int = 180
     retries: int = 2
     temperature: float = 0.0
+    # Ollama defaults to a 4096-token context. A single Stage 2 frame fits (~2.2k
+    # prompt + ~0.8k output), but a BATCHED Stage 2 call does not -- N frames need
+    # roughly N x 800 output tokens, and anything past the window is silently
+    # truncated into invalid JSON. Set this when batching.
+    num_ctx: int | None = None
     label: str = "LLM"  # used only in error messages
 
     @property
@@ -74,6 +79,9 @@ class OllamaClient:
 
     def complete(self, prompt: str, schema: dict, *, stronger: bool = False) -> dict:
         model = self.resolved_model(stronger)
+        options: dict = {"temperature": self.temperature}
+        if self.num_ctx:
+            options["num_ctx"] = self.num_ctx
         last_error: Exception | None = None
         for attempt in range(self.retries + 1):
             try:
@@ -85,7 +93,7 @@ class OllamaClient:
                         "stream": False,
                         "think": False,
                         "format": schema,
-                        "options": {"temperature": self.temperature},
+                        "options": options,
                     },
                     timeout=self.timeout,
                 )

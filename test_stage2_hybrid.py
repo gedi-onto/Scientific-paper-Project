@@ -6,6 +6,7 @@ from graphrag_stage1.stage2_semantic_frames import (
     build_deterministic_frame,
     extract_deterministic_frame,
     extract_with_routing,
+    stage2_pipeline,
 )
 
 
@@ -220,6 +221,89 @@ class HybridRoutingTests(unittest.TestCase):
         # Stage 3 consumes these -- they must be populated, not just present.
         self.assertEqual(frame["frame_type"], "MEASUREMENT")
         self.assertIn("confidence_components", frame)
+
+
+class BatchingTests(unittest.TestCase):
+    """Batched Stage 2: N statements per call, with a fallback to the proven path."""
+
+    def _statements(self, n):
+        return [
+            statement(
+                f"Marker {i} increased by {i} percent.",
+                "MEASUREMENT",
+                arg1=f"marker {i}",
+                predicate="increase",
+            ) | {"id": f"p1:u{i}"}
+            for i in range(1, n + 1)
+        ]
+
+    def test_batch_makes_one_call_for_many_statements(self):
+        stmts = self._statements(6)
+        s1 = {"paragraph_id": "p1", "paragraph": " ".join(s["text"] for s in stmts),
+              "statements": stmts, "relations": []}
+
+        class BatchClient(RecordingClient):
+            def complete(self, prompt, schema, *, stronger=False):
+                self.calls += 1
+                # Honour the batch schema: return one frame per statement, tagged by id.
+                frame = self._gen(schema["properties"]["frames"]["items"])
+                return {"frames": [dict(frame, statement_id=s["id"]) for s in stmts]}
+
+        client = BatchClient()
+        out = stage2_pipeline(s1, client=client, concurrency=1, batch_size=6)
+        self.assertEqual(client.calls, 1, "6 statements should be one batched call")
+        self.assertEqual(len(out["frames"]), 6)
+        self.assertEqual(out["audit"]["batch_size"], 6)
+        for item in out["frames"]:
+            self.assertEqual(item["processing"]["batched"], 6)
+
+    def test_frames_stay_aligned_to_their_statements(self):
+        stmts = self._statements(4)
+        s1 = {"paragraph_id": "p1", "paragraph": "x", "statements": stmts, "relations": []}
+
+        class ShuffledClient(RecordingClient):
+            def complete(self, prompt, schema, *, stronger=False):
+                self.calls += 1
+                frame = self._gen(schema["properties"]["frames"]["items"])
+                # Model returns them out of order -- alignment must follow statement_id.
+                return {"frames": [dict(frame, statement_id=s["id"]) for s in reversed(stmts)]}
+
+        out = stage2_pipeline(s1, client=ShuffledClient(), concurrency=1, batch_size=4)
+        self.assertEqual(
+            [i["statement_id"] for i in out["frames"]],
+            [s["id"] for s in stmts],
+            "frames must be re-aligned to the input statement order",
+        )
+
+    def test_short_batch_falls_back_to_per_statement_calls(self):
+        stmts = self._statements(4)
+        s1 = {"paragraph_id": "p1", "paragraph": "x", "statements": stmts, "relations": []}
+
+        class ShortClient(RecordingClient):
+            def complete(self, prompt, schema, *, stronger=False):
+                self.calls += 1
+                if "frames" in schema.get("properties", {}):
+                    return {"frames": []}  # truncated / malformed batch
+                return self._gen(schema)
+
+        client = ShortClient()
+        out = stage2_pipeline(s1, client=client, concurrency=1, batch_size=4)
+        # No facts dropped: it fell back to one call per statement.
+        self.assertEqual(len(out["frames"]), 4)
+        for item in out["frames"]:
+            self.assertNotIn("batched", item["processing"])
+
+    def test_batch_size_zero_keeps_the_original_path(self):
+        stmts = self._statements(3)
+        s1 = {"paragraph_id": "p1", "paragraph": "x", "statements": stmts, "relations": []}
+        client = RecordingClient()
+        out = stage2_pipeline(s1, client=client, concurrency=1, batch_size=0)
+        self.assertEqual(len(out["frames"]), 3)
+        # At least one call per statement (more if a frame triggered its reprocess
+        # retry), and crucially nothing went through the batched path.
+        self.assertGreaterEqual(client.calls, 3)
+        for item in out["frames"]:
+            self.assertNotIn("batched", item["processing"])
 
 
 if __name__ == "__main__":
