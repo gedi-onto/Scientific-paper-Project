@@ -444,18 +444,31 @@ print(meta["validated_triple_count"], "triples ->", meta["destination"])</code><
   about seven times as many tokens as a Stage 1 call, and Stage 2 runs once per fact rather than
   once per paragraph. That is your bottleneck.</p>
 
-  <h4>The three levers that actually work</h4>
+  <h4>The trap: a smaller model for Stage 2 makes things worse</h4>
+  <p>This is the obvious move, and it backfires. Every Stage 2 frame is checked against the
+  source text, and a frame that fails the check is <strong>reprocessed — a second full call</strong>.
+  A weaker model fails more often, so it buys a cheaper call and pays for two. Measured on the
+  same 43 facts, changing only the Stage 2 model:</p>
+
+  <table>
+    <tr><th>Stage 2 model</th><th>Facts accepted</th><th>Time</th></tr>
+    <tr><td><code>qwen3:4b</code> (smaller, "faster")</td><td>4 of 43 &nbsp;(9%)</td><td>268 s</td></tr>
+    <tr><td><code>qwen3:8b</code></td><td><strong>25 of 43 &nbsp;(58%)</strong></td><td><strong>243 s</strong></td></tr>
+  </table>
+
+  <p>The bigger model was <strong>faster and six times better</strong>. On this pipeline, model
+  quality is a <em>speed</em> feature.</p>
+
+  <h4>What actually works: make fewer calls</h4>
   <table>
     <tr><th>Lever</th><th>How</th><th>Effect</th></tr>
-    <tr><td><strong>A smaller model for Stage 2</strong></td><td><code>stage2_client=OllamaClient(model="qwen3:4b")</code></td><td>Stage 2 is form-filling, not deep reasoning — it doesn't need your best model.</td></tr>
-    <tr><td><strong>Skip the model where the answer is already known</strong></td><td><code>STAGE2_HYBRID=1</code></td><td>Measurements, classifications, mechanisms and methods get built from Stage 1's own output — no call at all.</td></tr>
+    <tr><td><strong>Skip calls whose answer is already known</strong></td><td><code>STAGE2_HYBRID=1</code></td><td>Some facts get built straight from Stage 1's own output — no call at all. How many depends on your papers; measure with <code>examples/hybrid_skip_report.py</code>.</td></tr>
     <tr><td><strong>Drop the retry pass</strong></td><td><code>STAGE2_MAX_RETRIES=0</code></td><td>Each reprocessed fact is a second full call. Costs you the auto-repair pass.</td></tr>
+    <tr><td><strong>Feed it fewer paragraphs</strong></td><td>Skip references, funding, acknowledgements</td><td>Fewer facts to frame. The cheapest win of all.</td></tr>
   </table>
 
   <div class="callout"><span class="h">Don't bother</span>Shrinking or batching prompts. Reading
-  the prompt is only ~3% of a Stage 2 call, so there is nothing there to win. And if you're on
-  Ollama, set <code>OLLAMA_MAX_LOADED_MODELS=2</code> so an 8B Stage 1 and a 4B Stage 2 stay in
-  memory together instead of being swapped in and out on every paragraph.</div>
+  the prompt is only ~3% of a Stage 2 call, so there is nothing there to win.</div>
 </section>
 
 <!-- ============ 09 ============ -->

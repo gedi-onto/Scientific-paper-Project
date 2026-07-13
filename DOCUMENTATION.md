@@ -383,16 +383,25 @@ analyze_paper(text, *, client, stage2_client=None, max_concurrency=8,
 Split raw text into paragraphs and run them in parallel. Pass `domain_ontology`
 (a path) or `ontology` (a prebuilt `OntologyManager`) to also run Stage 3.
 
-`stage2_client` runs Stage 2 on a **separate, usually smaller model**. Stage 2 is
-schema-constrained form-filling and makes the most calls per paragraph, so this is
-the main per-paper latency dial on a local GPU. Both clients share one global
-`max_concurrency` ceiling, so the cap still means what it says:
+`stage2_client` runs Stage 2 on a **separate model**. Both clients share one global
+`max_concurrency` ceiling, so the cap still means what it says.
 
-```python
-analyze_paper(text,
-              client=OllamaClient(model="qwen3:8b"),        # Stage 1: quality
-              stage2_client=OllamaClient(model="qwen3:4b"))  # Stage 2: speed
-```
+> ⚠️ **Do not point this at a weaker model to go faster — it backfires.** Measured on
+> 43 identical Stage 1 statements, changing *only* the Stage 2 model:
+>
+> | Stage 2 model | Frames passed | Grounding errors | Wall-clock |
+> |---|---|---|---|
+> | `qwen3:4b` | 4/43 (9%) | 54 | 268 s |
+> | `qwen3:8b` | **25/43 (58%)** | 23 | **243 s** |
+>
+> The smaller model is **slower and six times worse**. Stage 2's output is
+> grounding-checked against the source, and a weak model produces ungrounded frames
+> that trigger `REPROCESS_*` — and every retry is a *second full call*. The retries
+> cost more than the cheaper model saves. Per-call latency is the wrong thing to
+> optimise; total call count is what matters.
+
+Use `stage2_client` to point Stage 2 at a model that is **as strong or stronger**, or
+at a different provider (e.g. a hosted endpoint for Stage 2 while Stage 1 stays local).
 
 ```python
 run_paper(paragraphs, *, client, stage2_client=None, max_concurrency=8,
@@ -541,10 +550,17 @@ is not the whole story — **Stage 2 is decode-bound**. Measured on one paragrap
 | Stage 2 frame | 2,184 tok | 0.5 s (4.7k tok/s) | **819 tok** | **18.7 s** | **91%** |
 
 Prefill is nearly free; generation is not. A Stage 2 frame emits ~7× the tokens of
-a Stage 1 call, and that generation *is* the runtime. So the levers that work are
-the ones that make the model **write less** — a smaller `stage2_client`, fewer
-retries (`STAGE2_MAX_RETRIES=0`), or skipping the call entirely (`STAGE2_HYBRID`,
-below). Shrinking prompts or batching them saves almost nothing.
+a Stage 1 call, and that generation *is* the runtime. Shrinking prompts or batching
+them saves almost nothing.
+
+**But per-call latency is the wrong target.** Stage 2 frames are grounding-checked
+against the source, and a frame that fails is *reprocessed* — a second full call. So
+a weaker, faster model can easily make the run **slower**, by failing more often
+(see the ⚠️ under `stage2_client` in §Orchestration: `qwen3:4b` was both slower *and*
+6× worse than `qwen3:8b` on identical input). What actually reduces wall-clock is
+**fewer total calls**: drop the retry pass (`STAGE2_MAX_RETRIES=0`), skip calls whose
+answer is already known (`STAGE2_HYBRID`, below), or feed Stage 2 fewer, better
+statements. Model quality is a *speed* feature here, not just a quality one.
 
 ### Local GPU vs hosted
 
