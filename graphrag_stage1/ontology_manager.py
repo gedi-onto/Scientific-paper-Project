@@ -15,6 +15,23 @@ from rdflib.namespace import OWL, XSD
 ONTOLOGY_SUFFIXES = {".owl", ".rdf", ".ttl", ".nt", ".n3", ".jsonld"}
 CORE_ONTOLOGIES = ("BFO", "IAO", "CCO")
 
+# BFO needs no file of its own: CCO and IAO are both built on it and republish its
+# classes under the canonical obo/BFO_* IRIs. Shipping a separate BFO file is not just
+# redundant -- a stale one is actively harmful, because the legacy IFOMIS BFO 1.1 names
+# the same concepts under DIFFERENT IRIs ("entity" as both obo/BFO_0000001 and
+# ifomis.org/bfo/1.1#Entity), which makes every upper-ontology term ambiguous and
+# unusable. So BFO is loaded when present and simply skipped when it is not; what is
+# actually required is that its classes end up in the graph, which is verified below.
+OPTIONAL_CORE_ONTOLOGIES = {"BFO"}
+
+# The upper classes the fallback ladders climb to. If these are absent, an entity cannot
+# be typed as anything true, so their absence is a real error -- unlike a missing file.
+REQUIRED_UPPER_CLASSES = {
+    "entity": "http://purl.obolibrary.org/obo/BFO_0000001",
+    "process": "http://purl.obolibrary.org/obo/BFO_0000015",
+    "material entity": "http://purl.obolibrary.org/obo/BFO_0000040",
+}
+
 OBO = Namespace("http://purl.obolibrary.org/obo/")
 OBOINOWL = Namespace("http://www.geneontology.org/formats/oboInOwl#")
 
@@ -165,9 +182,25 @@ class OntologyManager:
                     if any(pattern in path.stem.casefold() for pattern in patterns)
                 ]
             if not files:
+                if name in OPTIONAL_CORE_ONTOLOGIES:
+                    continue  # its classes come in with CCO / IAO; verified after load
                 raise FileNotFoundError(f"Required core ontology {name} was not found")
             discovered.extend(files)
         return list(dict.fromkeys(discovered))
+
+    def missing_upper_classes(self) -> list[str]:
+        """Upper classes the fallback ladders climb to that are NOT in the loaded graph.
+
+        Advisory, not fatal. A minimal or non-BFO ontology set is perfectly legitimate --
+        an entity that cannot reach any of these simply lands on ``owl:Thing``, which is
+        true of anything. Callers that care (a Stage 3 audit, say) can check this; the
+        loader does not impose a stack the caller did not ask for.
+        """
+        loaded = {item for values in self.class_index.values() for item in values}
+        return [
+            term for term, iri in REQUIRED_UPPER_CLASSES.items()
+            if URIRef(iri) not in loaded
+        ]
 
     def _discover_domain_files(self, domain_ontology: str | Path | None) -> list[Path]:
         if domain_ontology:

@@ -116,5 +116,37 @@ class NamespaceDisambiguationTests(unittest.TestCase):
         self.assertIsNone(r["iri"])
 
 
+class RealOntologyStackTests(unittest.TestCase):
+    """The shipped ontologies, loaded for real. No BFO file -- CCO and IAO supply it."""
+
+    @classmethod
+    def setUpClass(cls):
+        from pathlib import Path
+        root = Path(__file__).resolve().parent / "ontologies"
+        if not root.exists():  # pragma: no cover - ontologies are optional in a wheel
+            raise unittest.SkipTest("ontologies/ not present")
+        cls.manager = OntologyManager(str(root)).load_all(
+            domain_ontology=str(root / "Domain" / "ino_merged.owl")
+        )
+
+    def test_bfo_classes_are_present_without_a_bfo_file(self):
+        # BFO ships no file of its own: CCO and IAO are built on it and republish its
+        # classes under the canonical obo/BFO_* IRIs.
+        self.assertEqual(self.manager.missing_upper_classes(), [])
+
+    def test_no_legacy_ifomis_bfo_remains(self):
+        # The legacy IFOMIS BFO 1.1 named the same concepts under DIFFERENT IRIs, which
+        # made every upper-ontology term ambiguous and unusable.
+        loaded = {str(c) for v in self.manager.class_index.values() for c in v}
+        self.assertFalse([c for c in loaded if "ifomis.org" in c])
+
+    def test_upper_terms_resolve_unambiguously(self):
+        for term in ("entity", "continuant", "occurrent", "process",
+                     "material entity", "independent continuant"):
+            self.assertEqual(
+                self.manager.explain_class_lookup(term)["status"], "matched", term
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
