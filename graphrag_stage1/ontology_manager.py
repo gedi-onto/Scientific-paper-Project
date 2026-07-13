@@ -202,6 +202,12 @@ class OntologyManager:
         self.class_index.clear()
         self.object_property_index.clear()
         self.datatype_property_index.clear()
+        # owl:Thing is the universal class -- every individual is one by definition. It is
+        # rarely declared explicitly in an ontology file, but create_instance rightly
+        # refuses to type an individual with an undeclared class, so declare it. This is
+        # what an entity we could not classify is typed as: true of anything, and
+        # therefore honest, unlike asserting a class we cannot justify.
+        self.graph.add((OWL.Thing, RDF.type, OWL.Class))
         classes = set(self.graph.subjects(RDF.type, OWL.Class)) | set(
             self.graph.subjects(RDF.type, RDFS.Class)
         )

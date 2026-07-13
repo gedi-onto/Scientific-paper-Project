@@ -29,7 +29,13 @@ GENERIC = {
     "http://purl.obolibrary.org/obo/IAO_0000030",  # information content entity
     "http://purl.obolibrary.org/obo/BFO_0000015",  # process
     "http://purl.obolibrary.org/obo/BFO_0000019",  # quality
-    "http://purl.obolibrary.org/obo/BFO_0000001",  # entity
+    "http://purl.obolibrary.org/obo/BFO_0000001",  # entity  (true of anything)
+    "http://purl.obolibrary.org/obo/BFO_0000002",  # continuant
+    "http://purl.obolibrary.org/obo/BFO_0000003",  # occurrent
+    "http://purl.obolibrary.org/obo/BFO_0000004",  # independent continuant
+    "http://purl.obolibrary.org/obo/BFO_0000031",  # generically dependent continuant
+    "http://purl.obolibrary.org/obo/BFO_0000040",  # material entity
+    "http://www.w3.org/2002/07/owl#Thing",         # could not classify
 }
 
 
