@@ -1,0 +1,195 @@
+<urn:graphrag:instance:35_percent_ef64540f4c344fc15fb9> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/Measurement> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:guidance_system_0f46b7a26e291c0a160d> <https://w3id.org/graphrag/alignment/v1/develops> <urn:graphrag:instance:more_stable_trajectories_1d74e2a79791d6555f84> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:ef92db39c73dc76b19ed> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:38770ff5a5aed22778b6> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:positioning_error_14e214d55a465f21a4b0> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.obolibrary.org/obo/IAO_0000030> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:be89bb06a225bfe29fc9> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <urn:graphrag:instance:state_estimate_6053c1c10e577a3cee0c> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:38770ff5a5aed22778b6> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:document:ec015bdb5e3dd30404e3> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:55bd610249255f093c07> <https://w3id.org/graphrag/vocab/page> "1"^^<http://www.w3.org/2001/XMLSchema#integer> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:53bf8a9819226169f044> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <https://w3id.org/graphrag/alignment/v1/hasSemanticParticipant> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:OBSERVATION_frame_for_p1_u3_e81232f1d7ee68926e64> <https://w3id.org/graphrag/alignment/v1/hasSemanticParticipant> <urn:graphrag:instance:guidance_system_0f46b7a26e291c0a160d> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:1e362b78835c9361588b> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/QualifiedAssertion> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:7e13c81a8f04f793cc56> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <https://w3id.org/graphrag/alignment/v1/hasSemanticParticipant> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:7725e5f91ad39624eca8> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <urn:graphrag:instance:positioning_error_14e214d55a465f21a4b0> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:state_estimate_6053c1c10e577a3cee0c> <https://w3id.org/graphrag/vocab/mappingStatus> "mapped" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:3da5072463bff4b9fd61> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:55bd610249255f093c07> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:ef92db39c73dc76b19ed> <https://w3id.org/graphrag/vocab/sourceText> "The fused sensor data reduced positioning error by 35 percent." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:01ec1e5ff8ecee4f50e0> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:38770ff5a5aed22778b6> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:1e362b78835c9361588b> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <https://w3id.org/graphrag/alignment/v1/explains> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:ef92db39c73dc76b19ed> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/QualifiedAssertion> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:3c0844c9d10d16cc384e> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/SourceStatement> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:document:ec015bdb5e3dd30404e3> <https://w3id.org/graphrag/vocab/sourceUri> "urn:graphrag:source:p1" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:1e362b78835c9361588b> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:55bd610249255f093c07> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:reduction_in_positioning_error_4c2a69cd296a40860c71> <https://w3id.org/graphrag/vocab/mappingStatus> "mapped" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6fc7a31690373827b9bc> <https://w3id.org/graphrag/vocab/sourceText> "The guidance system produced more stable trajectories." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:b3cb533fe07457b8c024> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:38770ff5a5aed22778b6> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:guidance_system_0f46b7a26e291c0a160d> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://www.commoncoreontologies.org/ont00000117> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:53bf8a9819226169f044> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <urn:graphrag:instance:trajectories_f847676cc25a345b40be> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:MECHANISM_frame_for_p1_u2_469fb3839c5ff893a941> <https://w3id.org/graphrag/alignment/v1/hasSemanticParticipant> <urn:graphrag:instance:state_estimate_6053c1c10e577a3cee0c> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:53bf8a9819226169f044> <https://w3id.org/graphrag/vocab/sourceText> "The guidance system produced more stable trajectories." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:ef92db39c73dc76b19ed> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <https://w3id.org/graphrag/alignment/v1/reduces> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:more_stable_trajectories_1d74e2a79791d6555f84> <https://w3id.org/graphrag/vocab/mappingStatus> "mapped" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6537b43bfd41a7df6f61> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <urn:graphrag:instance:guidance_system_0f46b7a26e291c0a160d> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:OBSERVATION_frame_for_p1_u3_e81232f1d7ee68926e64> <https://w3id.org/graphrag/vocab/sourceText> "The guidance system produced more stable trajectories." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:38770ff5a5aed22778b6> <https://w3id.org/graphrag/vocab/page> "1"^^<http://www.w3.org/2001/XMLSchema#integer> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:55bd610249255f093c07> <https://w3id.org/graphrag/vocab/charEnd> "177"^^<http://www.w3.org/2001/XMLSchema#integer> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:01ec1e5ff8ecee4f50e0> <https://w3id.org/graphrag/vocab/sourceText> "The fused sensor data reduced positioning error by 35 percent." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:positioning_error_14e214d55a465f21a4b0> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:38770ff5a5aed22778b6> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:01ec1e5ff8ecee4f50e0> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/QualifiedAssertion> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6e32289b2390c6cca7e8> <https://w3id.org/graphrag/vocab/sourceText> "The fusion provides a more complete state estimate." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:reduction_in_positioning_error_4c2a69cd296a40860c71> <https://w3id.org/graphrag/vocab/confidence> "0.5"^^<http://www.w3.org/2001/XMLSchema#double> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:38770ff5a5aed22778b6> <https://w3id.org/graphrag/vocab/charStart> "0"^^<http://www.w3.org/2001/XMLSchema#integer> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:53bf8a9819226169f044> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:3c0844c9d10d16cc384e> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:be89bb06a225bfe29fc9> <https://w3id.org/graphrag/vocab/sourceText> "The fusion provides a more complete state estimate." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:fusion_eaa8af1eceda40cbcadf> <https://w3id.org/graphrag/alignment/v1/supports> <urn:graphrag:instance:state_estimate_6053c1c10e577a3cee0c> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:55bd610249255f093c07> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:document:ec015bdb5e3dd30404e3> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:7e13c81a8f04f793cc56> <https://w3id.org/graphrag/vocab/sourceText> "The fused sensor data reduced positioning error by 35 percent." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:7e13c81a8f04f793cc56> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/QualifiedAssertion> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:be89bb06a225bfe29fc9> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <https://w3id.org/graphrag/alignment/v1/hasSemanticParticipant> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6e32289b2390c6cca7e8> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <https://w3id.org/graphrag/alignment/v1/supports> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:ef92db39c73dc76b19ed> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <urn:graphrag:instance:fused_sensor_data_9e2789ebcc1eb7b844a1> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:MECHANISM_frame_for_p1_u2_469fb3839c5ff893a941> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:55bd610249255f093c07> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:f908f6c9f896e27e5207> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:38770ff5a5aed22778b6> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6fc7a31690373827b9bc> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:3c0844c9d10d16cc384e> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:CAUSAL_RELATION_frame_for_p1_u1_727eeabf441603dcfcdc> <https://w3id.org/graphrag/alignment/v1/hasSemanticParticipant> <urn:graphrag:instance:reduction_in_positioning_error_4c2a69cd296a40860c71> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:fused_sensor_data_9e2789ebcc1eb7b844a1> <https://w3id.org/graphrag/alignment/v1/reduces> <urn:graphrag:instance:positioning_error_14e214d55a465f21a4b0> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:guidance_system_0f46b7a26e291c0a160d> <https://w3id.org/graphrag/vocab/canonicalForm> "guidance system" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:b3cb533fe07457b8c024> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <urn:graphrag:instance:positioning_error_14e214d55a465f21a4b0> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6fc7a31690373827b9bc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/QualifiedAssertion> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:01ec1e5ff8ecee4f50e0> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <urn:graphrag:instance:CAUSAL_RELATION_frame_for_p1_u1_727eeabf441603dcfcdc> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:fusion_eaa8af1eceda40cbcadf> <https://w3id.org/graphrag/vocab/confidence> "0.9"^^<http://www.w3.org/2001/XMLSchema#double> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:CAUSAL_RELATION_frame_for_p1_u1_727eeabf441603dcfcdc> <https://w3id.org/graphrag/alignment/v1/hasSemanticParticipant> <urn:graphrag:instance:positioning_error_14e214d55a465f21a4b0> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:f908f6c9f896e27e5207> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <urn:graphrag:instance:reduction_in_positioning_error_4c2a69cd296a40860c71> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6537b43bfd41a7df6f61> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <https://w3id.org/graphrag/alignment/v1/develops> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:b3cb533fe07457b8c024> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <https://w3id.org/graphrag/alignment/v1/hasSemanticParticipant> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:55bd610249255f093c07> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/SourceStatement> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:fused_sensor_data_9e2789ebcc1eb7b844a1> <https://w3id.org/graphrag/vocab/confidence> "0.9"^^<http://www.w3.org/2001/XMLSchema#double> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:CAUSAL_RELATION_frame_for_p1_u1_727eeabf441603dcfcdc> <https://w3id.org/graphrag/alignment/v1/hasSemanticParticipant> <urn:graphrag:instance:fused_sensor_data_9e2789ebcc1eb7b844a1> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:state_estimate_6053c1c10e577a3cee0c> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:55bd610249255f093c07> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:trajectories_f847676cc25a345b40be> <https://w3id.org/graphrag/vocab/canonicalForm> "trajectories" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:state_estimate_6053c1c10e577a3cee0c> <https://w3id.org/graphrag/vocab/confidence> "0.5"^^<http://www.w3.org/2001/XMLSchema#double> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:fusion_eaa8af1eceda40cbcadf> <https://w3id.org/graphrag/vocab/canonicalForm> "fusion" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:3da5072463bff4b9fd61> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <https://w3id.org/graphrag/alignment/v1/hasSemanticParticipant> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:fused_sensor_data_9e2789ebcc1eb7b844a1> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:38770ff5a5aed22778b6> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:fusion_eaa8af1eceda40cbcadf> <http://www.w3.org/2000/01/rdf-schema#label> "fusion" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6fc7a31690373827b9bc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <urn:graphrag:instance:OBSERVATION_frame_for_p1_u3_e81232f1d7ee68926e64> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:more_stable_trajectories_1d74e2a79791d6555f84> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:3c0844c9d10d16cc384e> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:fusion_eaa8af1eceda40cbcadf> <https://w3id.org/graphrag/vocab/surfaceForm> "fusion" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:trajectories_f847676cc25a345b40be> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.obolibrary.org/obo/IAO_0000030> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:document:ec015bdb5e3dd30404e3> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/SourceDocument> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6537b43bfd41a7df6f61> <https://w3id.org/graphrag/vocab/sourceText> "The guidance system produced more stable trajectories." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6fc7a31690373827b9bc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <urn:graphrag:instance:more_stable_trajectories_1d74e2a79791d6555f84> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:53bf8a9819226169f044> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <urn:graphrag:instance:OBSERVATION_frame_for_p1_u3_e81232f1d7ee68926e64> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:3da5072463bff4b9fd61> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <urn:graphrag:instance:MECHANISM_frame_for_p1_u2_469fb3839c5ff893a941> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:CAUSAL_RELATION_frame_for_p1_u1_727eeabf441603dcfcdc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/alignment/v1/CausalRelationFrame> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:fused_sensor_data_9e2789ebcc1eb7b844a1> <http://www.w3.org/2000/01/rdf-schema#label> "fused sensor data" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:d64a6bcff257235fb387> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <urn:graphrag:instance:guidance_system_0f46b7a26e291c0a160d> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:d64a6bcff257235fb387> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <https://w3id.org/graphrag/alignment/v1/hasSemanticParticipant> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:MECHANISM_frame_for_p1_u2_469fb3839c5ff893a941> <https://w3id.org/graphrag/alignment/v1/explains> <urn:graphrag:instance:CAUSAL_RELATION_frame_for_p1_u1_727eeabf441603dcfcdc> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:guidance_system_0f46b7a26e291c0a160d> <http://www.w3.org/2000/01/rdf-schema#label> "guidance system" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:35_percent_ef64540f4c344fc15fb9> <https://w3id.org/graphrag/vocab/unit> "percent" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:OBSERVATION_frame_for_p1_u3_e81232f1d7ee68926e64> <https://w3id.org/graphrag/alignment/v1/hasSemanticParticipant> <urn:graphrag:instance:more_stable_trajectories_1d74e2a79791d6555f84> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:guidance_system_0f46b7a26e291c0a160d> <https://w3id.org/graphrag/vocab/confidence> "0.9"^^<http://www.w3.org/2001/XMLSchema#double> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:7725e5f91ad39624eca8> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <urn:graphrag:instance:35_percent_ef64540f4c344fc15fb9> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:1e362b78835c9361588b> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <urn:graphrag:instance:MECHANISM_frame_for_p1_u2_469fb3839c5ff893a941> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:fused_sensor_data_9e2789ebcc1eb7b844a1> <https://w3id.org/graphrag/vocab/canonicalForm> "fused sensor data" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:MECHANISM_frame_for_p1_u2_469fb3839c5ff893a941> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/alignment/v1/MechanismFrame> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:38770ff5a5aed22778b6> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/SourceStatement> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:3c0844c9d10d16cc384e> <https://w3id.org/graphrag/vocab/charStart> "123"^^<http://www.w3.org/2001/XMLSchema#integer> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:55bd610249255f093c07> <https://w3id.org/graphrag/vocab/charStart> "63"^^<http://www.w3.org/2001/XMLSchema#integer> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:53bf8a9819226169f044> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/QualifiedAssertion> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:35_percent_ef64540f4c344fc15fb9> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:38770ff5a5aed22778b6> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:OBSERVATION_frame_for_p1_u3_e81232f1d7ee68926e64> <https://w3id.org/graphrag/vocab/page> "1"^^<http://www.w3.org/2001/XMLSchema#integer> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:7725e5f91ad39624eca8> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:38770ff5a5aed22778b6> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:MECHANISM_frame_for_p1_u2_469fb3839c5ff893a941> <https://w3id.org/graphrag/vocab/sourceText> "The fusion provides a more complete state estimate." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:OBSERVATION_frame_for_p1_u3_e81232f1d7ee68926e64> <https://w3id.org/graphrag/vocab/mappingStatus> "mapped" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:positioning_error_14e214d55a465f21a4b0> <https://w3id.org/graphrag/vocab/mappingStatus> "mapped" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:guidance_system_0f46b7a26e291c0a160d> <https://w3id.org/graphrag/vocab/surfaceForm> "guidance system" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:OBSERVATION_frame_for_p1_u3_e81232f1d7ee68926e64> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:3c0844c9d10d16cc384e> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:state_estimate_6053c1c10e577a3cee0c> <https://w3id.org/graphrag/vocab/canonicalForm> "state estimate" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6537b43bfd41a7df6f61> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/QualifiedAssertion> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:d64a6bcff257235fb387> <https://w3id.org/graphrag/vocab/sourceText> "The guidance system produced more stable trajectories." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:fused_sensor_data_9e2789ebcc1eb7b844a1> <https://w3id.org/graphrag/alignment/v1/causes> <urn:graphrag:instance:reduction_in_positioning_error_4c2a69cd296a40860c71> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:positioning_error_14e214d55a465f21a4b0> <http://www.w3.org/2000/01/rdf-schema#label> "positioning error" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:38770ff5a5aed22778b6> <https://w3id.org/graphrag/vocab/charEnd> "62"^^<http://www.w3.org/2001/XMLSchema#integer> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:f908f6c9f896e27e5207> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <https://w3id.org/graphrag/alignment/v1/causes> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:state_estimate_6053c1c10e577a3cee0c> <https://w3id.org/graphrag/vocab/surfaceForm> "state estimate" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:7725e5f91ad39624eca8> <https://w3id.org/graphrag/vocab/sourceText> "The fused sensor data reduced positioning error by 35 percent." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:trajectories_f847676cc25a345b40be> <http://www.w3.org/2000/01/rdf-schema#label> "trajectories" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:3da5072463bff4b9fd61> <https://w3id.org/graphrag/vocab/sourceText> "The fusion provides a more complete state estimate." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:7725e5f91ad39624eca8> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/QualifiedAssertion> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:7e13c81a8f04f793cc56> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <urn:graphrag:instance:CAUSAL_RELATION_frame_for_p1_u1_727eeabf441603dcfcdc> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:fused_sensor_data_9e2789ebcc1eb7b844a1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://www.commoncoreontologies.org/ont00000569> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:55bd610249255f093c07> <https://w3id.org/graphrag/vocab/sourceText> "The fusion provides a more complete state estimate." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:positioning_error_14e214d55a465f21a4b0> <https://w3id.org/graphrag/vocab/confidence> "0.5"^^<http://www.w3.org/2001/XMLSchema#double> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:trajectories_f847676cc25a345b40be> <https://w3id.org/graphrag/vocab/surfaceForm> "trajectories" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:7e13c81a8f04f793cc56> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <urn:graphrag:instance:reduction_in_positioning_error_4c2a69cd296a40860c71> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:reduction_in_positioning_error_4c2a69cd296a40860c71> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.obolibrary.org/obo/IAO_0000030> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6e32289b2390c6cca7e8> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/QualifiedAssertion> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:CAUSAL_RELATION_frame_for_p1_u1_727eeabf441603dcfcdc> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:38770ff5a5aed22778b6> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:reduction_in_positioning_error_4c2a69cd296a40860c71> <http://www.w3.org/2000/01/rdf-schema#label> "reduction in positioning error" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:trajectories_f847676cc25a345b40be> <https://w3id.org/graphrag/vocab/mappingStatus> "mapped" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:OBSERVATION_frame_for_p1_u3_e81232f1d7ee68926e64> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/alignment/v1/ObservationFrame> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:f908f6c9f896e27e5207> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/QualifiedAssertion> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:guidance_system_0f46b7a26e291c0a160d> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:3c0844c9d10d16cc384e> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:be89bb06a225bfe29fc9> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/QualifiedAssertion> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:3c0844c9d10d16cc384e> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:document:ec015bdb5e3dd30404e3> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:trajectories_f847676cc25a345b40be> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:3c0844c9d10d16cc384e> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:fusion_eaa8af1eceda40cbcadf> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.obolibrary.org/obo/BFO_0000015> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:3c0844c9d10d16cc384e> <https://w3id.org/graphrag/vocab/charEnd> "177"^^<http://www.w3.org/2001/XMLSchema#integer> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:more_stable_trajectories_1d74e2a79791d6555f84> <https://w3id.org/graphrag/vocab/canonicalForm> "more stable trajectories" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6e32289b2390c6cca7e8> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:55bd610249255f093c07> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:7725e5f91ad39624eca8> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <https://w3id.org/graphrag/alignment/v1/measures> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:3c0844c9d10d16cc384e> <https://w3id.org/graphrag/vocab/sourceText> "The guidance system produced more stable trajectories." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:f908f6c9f896e27e5207> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <urn:graphrag:instance:fused_sensor_data_9e2789ebcc1eb7b844a1> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:fused_sensor_data_9e2789ebcc1eb7b844a1> <https://w3id.org/graphrag/vocab/surfaceForm> "fused sensor data" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:CAUSAL_RELATION_frame_for_p1_u1_727eeabf441603dcfcdc> <https://w3id.org/graphrag/vocab/mappingStatus> "mapped" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:fusion_eaa8af1eceda40cbcadf> <https://w3id.org/graphrag/vocab/mappingStatus> "mapped" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:35_percent_ef64540f4c344fc15fb9> <https://w3id.org/graphrag/alignment/v1/measures> <urn:graphrag:instance:positioning_error_14e214d55a465f21a4b0> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:01ec1e5ff8ecee4f50e0> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <https://w3id.org/graphrag/alignment/v1/hasSemanticParticipant> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:b3cb533fe07457b8c024> <https://w3id.org/graphrag/vocab/sourceText> "The fused sensor data reduced positioning error by 35 percent." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:35_percent_ef64540f4c344fc15fb9> <https://w3id.org/graphrag/vocab/value> "35"^^<http://www.w3.org/2001/XMLSchema#integer> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:b3cb533fe07457b8c024> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/QualifiedAssertion> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:MECHANISM_frame_for_p1_u2_469fb3839c5ff893a941> <https://w3id.org/graphrag/vocab/mappingStatus> "partial_mapping" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:fused_sensor_data_9e2789ebcc1eb7b844a1> <https://w3id.org/graphrag/vocab/mappingStatus> "mapped" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:document:ec015bdb5e3dd30404e3> <http://www.w3.org/2000/01/rdf-schema#label> "p1" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:fusion_eaa8af1eceda40cbcadf> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:55bd610249255f093c07> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:reduction_in_positioning_error_4c2a69cd296a40860c71> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:38770ff5a5aed22778b6> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:state_estimate_6053c1c10e577a3cee0c> <http://www.w3.org/2000/01/rdf-schema#label> "state estimate" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:3c0844c9d10d16cc384e> <https://w3id.org/graphrag/vocab/page> "1"^^<http://www.w3.org/2001/XMLSchema#integer> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:be89bb06a225bfe29fc9> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <urn:graphrag:instance:MECHANISM_frame_for_p1_u2_469fb3839c5ff893a941> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6e32289b2390c6cca7e8> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <urn:graphrag:instance:state_estimate_6053c1c10e577a3cee0c> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:1e362b78835c9361588b> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <urn:graphrag:instance:CAUSAL_RELATION_frame_for_p1_u1_727eeabf441603dcfcdc> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6537b43bfd41a7df6f61> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:3c0844c9d10d16cc384e> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:state_estimate_6053c1c10e577a3cee0c> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.obolibrary.org/obo/IAO_0000030> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6fc7a31690373827b9bc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <https://w3id.org/graphrag/alignment/v1/hasSemanticParticipant> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:positioning_error_14e214d55a465f21a4b0> <https://w3id.org/graphrag/vocab/canonicalForm> "positioning error" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:3da5072463bff4b9fd61> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/QualifiedAssertion> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:b3cb533fe07457b8c024> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <urn:graphrag:instance:CAUSAL_RELATION_frame_for_p1_u1_727eeabf441603dcfcdc> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:positioning_error_14e214d55a465f21a4b0> <https://w3id.org/graphrag/vocab/surfaceForm> "positioning error" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:trajectories_f847676cc25a345b40be> <https://w3id.org/graphrag/vocab/confidence> "0.65"^^<http://www.w3.org/2001/XMLSchema#double> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:d64a6bcff257235fb387> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <urn:graphrag:instance:OBSERVATION_frame_for_p1_u3_e81232f1d7ee68926e64> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6e32289b2390c6cca7e8> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <urn:graphrag:instance:fusion_eaa8af1eceda40cbcadf> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:more_stable_trajectories_1d74e2a79791d6555f84> <https://w3id.org/graphrag/vocab/confidence> "0.65"^^<http://www.w3.org/2001/XMLSchema#double> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:f908f6c9f896e27e5207> <https://w3id.org/graphrag/vocab/sourceText> "The fused sensor data reduced positioning error by 35 percent." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:CAUSAL_RELATION_frame_for_p1_u1_727eeabf441603dcfcdc> <https://w3id.org/graphrag/vocab/hasMeasurement> <urn:graphrag:instance:35_percent_ef64540f4c344fc15fb9> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:statement:38770ff5a5aed22778b6> <https://w3id.org/graphrag/vocab/sourceText> "The fused sensor data reduced positioning error by 35 percent." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:more_stable_trajectories_1d74e2a79791d6555f84> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.obolibrary.org/obo/IAO_0000030> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:7e13c81a8f04f793cc56> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:38770ff5a5aed22778b6> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:ef92db39c73dc76b19ed> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <urn:graphrag:instance:positioning_error_14e214d55a465f21a4b0> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:reduction_in_positioning_error_4c2a69cd296a40860c71> <https://w3id.org/graphrag/vocab/canonicalForm> "reduction in positioning error" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:more_stable_trajectories_1d74e2a79791d6555f84> <http://www.w3.org/2000/01/rdf-schema#label> "more stable trajectories" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:MECHANISM_frame_for_p1_u2_469fb3839c5ff893a941> <https://w3id.org/graphrag/alignment/v1/hasSemanticParticipant> <urn:graphrag:instance:fusion_eaa8af1eceda40cbcadf> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:d64a6bcff257235fb387> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/graphrag/vocab/QualifiedAssertion> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:reduction_in_positioning_error_4c2a69cd296a40860c71> <https://w3id.org/graphrag/vocab/surfaceForm> "reduction in positioning error" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:be89bb06a225bfe29fc9> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:55bd610249255f093c07> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:01ec1e5ff8ecee4f50e0> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <urn:graphrag:instance:fused_sensor_data_9e2789ebcc1eb7b844a1> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:d64a6bcff257235fb387> <http://www.w3.org/ns/prov#wasDerivedFrom> <urn:graphrag:statement:3c0844c9d10d16cc384e> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:OBSERVATION_frame_for_p1_u3_e81232f1d7ee68926e64> <https://w3id.org/graphrag/alignment/v1/hasSemanticParticipant> <urn:graphrag:instance:trajectories_f847676cc25a345b40be> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:guidance_system_0f46b7a26e291c0a160d> <https://w3id.org/graphrag/vocab/mappingStatus> "mapped" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:3da5072463bff4b9fd61> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <urn:graphrag:instance:fusion_eaa8af1eceda40cbcadf> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:MECHANISM_frame_for_p1_u2_469fb3839c5ff893a941> <https://w3id.org/graphrag/vocab/page> "1"^^<http://www.w3.org/2001/XMLSchema#integer> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:more_stable_trajectories_1d74e2a79791d6555f84> <https://w3id.org/graphrag/vocab/surfaceForm> "more stable trajectories" <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:CAUSAL_RELATION_frame_for_p1_u1_727eeabf441603dcfcdc> <https://w3id.org/graphrag/vocab/sourceText> "The fused sensor data reduced positioning error by 35 percent." <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:assertion:6537b43bfd41a7df6f61> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <urn:graphrag:instance:more_stable_trajectories_1d74e2a79791d6555f84> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+<urn:graphrag:instance:CAUSAL_RELATION_frame_for_p1_u1_727eeabf441603dcfcdc> <https://w3id.org/graphrag/vocab/page> "1"^^<http://www.w3.org/2001/XMLSchema#integer> <urn:graphrag:graph:f64551fcd6f07823cb87> .
+

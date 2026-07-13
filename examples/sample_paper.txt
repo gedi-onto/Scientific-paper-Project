@@ -1,0 +1,7 @@
+Lithium-ion batteries degrade faster at elevated temperatures. When cells were cycled at 45 degrees Celsius, capacity fell by 18 percent after 500 cycles, compared with only 6 percent at 25 degrees Celsius.
+
+The accelerated loss is driven by growth of the solid-electrolyte interphase. Because higher temperatures speed up the side reactions that consume lithium, the interphase thickens and the usable capacity declines.
+
+We measured an internal resistance increase of 2.224 milliohms over the same cycle window. These results are consistent with prior reports of thermally driven aging.
+
+The model predicts that operating the pack below 30 degrees Celsius would extend service life by more than 40 percent. This prediction has not yet been validated experimentally.

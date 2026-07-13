@@ -16,8 +16,13 @@ env/
 
 # Local pipeline artifacts (JSONL checkpoints, exports)
 *.jsonl
+/*.nq
+/*.log
 out/
 exports/
+
+# Personal scratch inputs
+my_paper.txt
 
 # Editor / OS
 .vscode/

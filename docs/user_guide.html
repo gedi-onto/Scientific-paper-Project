@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>graphrag_stage1 — Field Manual</title>
+<style>
+  :root{
+    --paper:#f5f1e8; --paper2:#efe8d8; --ink:#221f1a; --ink2:#463f34;
+    --mut:#6f6858; --faint:#a99f8a; --rust:#a8412a; --rust2:#7c2c1a;
+    --ochre:#9a7616; --sage:#4f6349; --rule:#ddd3bf; --rule2:#c3b79c; --code:#efe8d8;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-print-color-adjust:exact; print-color-adjust:exact; background:var(--paper);}
+  body{font-family:"Palatino Linotype","Book Antiqua",Palatino,Georgia,serif;
+    color:var(--ink); background:var(--paper); font-size:11pt; line-height:1.6; margin:0;}
+  .mono{font-family:"Consolas","SF Mono","DejaVu Sans Mono",monospace;}
+  @page{ size:A4; margin:0; }
+
+  /* ---------- COVER: framed technical plate ---------- */
+  .cover{height:297mm; width:100%; margin:0; padding:14mm; background:var(--paper);
+    break-after:page; color:var(--ink);}
+  .frame{height:100%; border:1.5px solid var(--ink); padding:16mm 15mm;
+    display:flex; flex-direction:column; justify-content:space-between; position:relative;}
+  .frame::before{content:""; position:absolute; inset:4mm; border:0.5px solid var(--rule2); pointer-events:none;}
+  .cv-top{display:flex; justify-content:space-between; font-family:"Consolas",monospace;
+    font-size:9pt; letter-spacing:.14em; text-transform:uppercase; color:var(--mut); z-index:1;}
+  .cv-mid{z-index:1;}
+  .plate{font-family:"Consolas",monospace; font-size:15pt; color:var(--rust); letter-spacing:.1em; margin-bottom:6mm;}
+  .plate::before{content:"— "; color:var(--rule2);}
+  .cv-title{font-size:47pt; line-height:1.02; letter-spacing:-.5px; margin:0; font-weight:700;}
+  .cv-title em{font-style:normal; color:var(--rust); }
+  .cv-hr{height:2px; width:70mm; background:var(--ink); margin:9mm 0 6mm;}
+  .cv-sub{font-size:13.5pt; line-height:1.5; color:var(--ink2); max-width:135mm; font-style:italic;}
+  .cv-spec{z-index:1; font-family:"Consolas",monospace; font-size:9pt; color:var(--ink2);
+    border-top:1px solid var(--rule2); padding-top:6mm;}
+  .cv-spec .row{display:flex; gap:6mm; margin:3px 0;}
+  .cv-spec .k{color:var(--rust); width:22mm; flex:none; letter-spacing:.08em;}
+  .cv-spec .pipe{margin-top:5mm; color:var(--mut); letter-spacing:.02em;}
+
+  /* ---------- CHAPTERS ---------- */
+  .chapter{break-before:page; padding:13mm 17mm;}
+  /* keep headings attached to the text that follows them */
+  h2.chap-title, h3, h4, .lead{break-after:avoid; break-inside:avoid;}
+  /* never leave a single stray line of a paragraph across a page break */
+  p, li{orphans:3; widows:3;}
+  .chap-num{font-family:"Consolas",monospace; letter-spacing:.2em; text-transform:uppercase;
+    font-size:9pt; color:var(--rust); font-weight:700; margin-bottom:5px;}
+  h2.chap-title{font-size:25pt; letter-spacing:-.4px; margin:0; color:var(--ink); line-height:1.08; font-weight:700;}
+  .chap-rule{height:1px; background:var(--rule2); margin:14px 0 20px; position:relative;}
+  .chap-rule::before{content:""; position:absolute; left:0; top:0; width:34px; height:3px;
+    top:-1px; background:var(--rust);}
+  h3{font-family:"Palatino Linotype",Georgia,serif; font-size:14pt; color:var(--rust2); margin:22px 0 6px; font-weight:700;}
+  h4{font-family:"Consolas",monospace; font-size:9.5pt; color:var(--ink2); margin:12px 0 4px;
+    text-transform:uppercase; letter-spacing:.1em;}
+  h4::before{content:"› "; color:var(--rust);}
+  p{margin:0 0 8px;} .lead{font-size:12.5pt; color:var(--mut); line-height:1.5; margin-bottom:13px; font-style:italic;}
+  strong{color:var(--ink); font-weight:700;} em{color:var(--mut);}
+  a{color:var(--rust2); text-decoration:none;} ul,ol{margin:0 0 10px; padding-left:20px;} li{margin:4px 0;}
+
+  /* ---------- notes (editorial, not pill boxes) ---------- */
+  .callout{background:transparent; border-left:2.5px solid var(--rust); padding:4px 0 4px 15px;
+    margin:14px 0; break-inside:avoid; font-size:10.5pt; color:var(--ink2);}
+  .callout.warn{border-color:var(--ochre);} .callout.good{border-color:var(--sage);}
+  .callout .h{font-family:"Consolas",monospace; font-weight:700; font-size:8.6pt; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--rust); display:block; margin-bottom:3px;}
+  .callout.warn .h{color:var(--ochre);} .callout.good .h{color:var(--sage);}
+  .callout .h::after{content:" —"; color:var(--rule2);}
+
+  pre{background:var(--code); border:1px solid var(--rule2); border-left:3px solid var(--rust);
+    border-radius:2px; padding:11px 14px; overflow-x:auto; font-family:"Consolas",monospace;
+    font-size:8.9pt; line-height:1.48; margin:8px 0; break-inside:avoid; color:#33302a;}
+  code{font-family:"Consolas",monospace; font-size:9.1pt; background:var(--paper2);
+    padding:1px 4px; border-radius:2px; color:var(--rust2);}
+  pre code{background:none; padding:0; color:inherit; font-size:8.9pt;}
+  .step{font-family:"Consolas",monospace; font-size:8.5pt; color:var(--paper); background:var(--rust);
+    border-radius:2px; padding:2px 8px; font-weight:700; margin-right:6px;}
+
+  /* ---------- tables (rule-based, editorial) ---------- */
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:10pt;}
+  tr{break-inside:avoid;} thead{break-after:avoid;}
+  th{text-align:left; padding:6px 10px 7px; font-family:"Consolas",monospace; font-size:8.6pt;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--rust2);
+    border-bottom:1.5px solid var(--ink);}
+  td{border-bottom:1px solid var(--rule); padding:7px 10px; vertical-align:top;}
+  tr:nth-child(even) td{background:rgba(0,0,0,.018);}
+  td code{font-size:8.6pt;}
+
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:12px 0;}
+  .card{border:1px solid var(--rule2); border-top:2px solid var(--rust); border-radius:2px;
+    padding:12px 15px; break-inside:avoid; background:rgba(255,255,255,.35);}
+  .card .t{font-family:"Consolas",monospace; font-weight:700; color:var(--rust2); font-size:9.5pt;
+    letter-spacing:.03em; margin-bottom:4px; text-transform:uppercase;}
+
+  .toc{font-family:"Palatino Linotype",Georgia,serif; font-size:11.5pt;}
+  .toc li{margin:9px 0; list-style:none; display:flex; align-items:baseline; gap:12px;}
+  .toc .n{font-family:"Consolas",monospace; color:var(--rust); font-weight:700; width:30px; flex:none; font-size:10pt;}
+  .toc .d{flex:1; border-bottom:1px dotted var(--rule2); margin:0 6px; transform:translateY(-4px);}
+  .toc .ti{color:var(--ink);}
+
+  .footer-note{color:var(--faint); font-family:"Consolas",monospace; font-size:8pt; letter-spacing:.06em;
+    text-align:center; margin-top:26px; padding-top:10px; border-top:1px solid var(--rule2);}
+  .big-q{font-size:14.5pt; color:var(--rust2); line-height:1.45; font-style:italic;
+    border-left:3px solid var(--ochre); padding-left:16px; margin:16px 0;}
+  .facet-key{font-family:"Consolas",monospace; font-size:8.6pt; color:var(--rust2); font-weight:700;}
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<section class="cover">
+  <div class="frame">
+    <div class="cv-top">
+      <span>Field Manual &nbsp;·&nbsp; No. 01</span>
+      <span>graphrag&#95;stage1 &nbsp;·&nbsp; v0.1.0</span>
+    </div>
+    <div class="cv-mid">
+      <div class="plate">Practical guide for operators</div>
+      <h1 class="cv-title">Turn Papers<br>into a<br><em>Knowledge Graph</em></h1>
+      <div class="cv-hr"></div>
+      <p class="cv-sub">Install to upload — with copy-paste code, real outputs,<br>recipes, and troubleshooting. No theory you don't need.</p>
+    </div>
+    <div class="cv-spec">
+      <div class="row"><span class="k">INPUT</span><span>plain text extracted from a paper (not a PDF)</span></div>
+      <div class="row"><span class="k">PROCESS</span><span>Stage 1 facts &rarr; Stage 2 frames &rarr; Stage 3 ontology mapping</span></div>
+      <div class="row"><span class="k">OUTPUT</span><span>validated N-Quads &mdash; a graph you can load</span></div>
+      <div class="pipe">text &rsaquo;&rsaquo; analyze_paper() &rsaquo;&rsaquo; results &rsaquo;&rsaquo; export_neptune_nquads() &rsaquo;&rsaquo; .nq</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONTENTS ============ -->
+<section class="chapter">
+  <div class="chap-num">Contents</div>
+  <h2 class="chap-title">In this manual</h2>
+  <div class="chap-rule"></div>
+  <p class="lead">Everything is task-oriented: find what you want to do, copy the code, run it.</p>
+  <ol class="toc">
+    <li><span class="n">01</span><span class="ti">What it does &amp; what you need</span><span class="d"></span></li>
+    <li><span class="n">02</span><span class="ti">Install &amp; set up</span><span class="d"></span></li>
+    <li><span class="n">03</span><span class="ti">Your first run</span><span class="d"></span></li>
+    <li><span class="n">04</span><span class="ti">Reading the results</span><span class="d"></span></li>
+    <li><span class="n">05</span><span class="ti">Choose your model</span><span class="d"></span></li>
+    <li><span class="n">06</span><span class="ti">Use your own ontology</span><span class="d"></span></li>
+    <li><span class="n">07</span><span class="ti">Produce the Neptune file</span><span class="d"></span></li>
+    <li><span class="n">08</span><span class="ti">Make it fast</span><span class="d"></span></li>
+    <li><span class="n">09</span><span class="ti">Recipes &amp; cheat sheet</span><span class="d"></span></li>
+    <li><span class="n">10</span><span class="ti">Troubleshooting &amp; FAQ</span><span class="d"></span></li>
+    <li><span class="n">11</span><span class="ti">Jupyter Notebook Workflow</span><span class="d"></span></li>
+  </ol>
+</section>
+
+<!-- ============ 01 ============ -->
+<section class="chapter">
+  <div class="chap-num">Chapter 01</div>
+  <h2 class="chap-title">What it does &amp; what you need</h2>
+  <div class="chap-rule"></div>
+  <p class="lead">You give it the text of a paper. It gives you back structured, verified,
+  source-anchored facts — and, optionally, a knowledge-graph file ready to upload.</p>
+
+  <h4>How it works, in 30 seconds</h4>
+  <p>Three stages run automatically for each paragraph:</p>
+  <table>
+    <tr><th>Stage</th><th>What it produces</th></tr>
+    <tr><td><strong>Stage 1</strong></td><td>Atomic <strong>facts</strong>, each labeled (measurement? cause? prediction?) and tied to its exact source text.</td></tr>
+    <tr><td><strong>Stage 2</strong></td><td>Verified <strong>frames</strong> — the facts organized into fields, grounding-checked, with a confidence score.</td></tr>
+    <tr><td><strong>Stage 3</strong></td><td>The facts mapped onto an <strong>ontology</strong> and emitted as RDF for a graph database (optional — only if you give it an ontology).</td></tr>
+  </table>
+
+  <h4>What you need before you start</h4>
+  <div class="grid2">
+    <div class="card"><div class="t">Python 3.10+</div>It's a library you import — not an app or a server.</div>
+    <div class="card"><div class="t">A language model</div>Your own — an API key (Anthropic/OpenAI) or a local/hosted model. The library brings none.</div>
+    <div class="card"><div class="t">Text, not PDFs</div>Convert PDFs to text first (see Chapter 2). The library reads plain text.</div>
+    <div class="card"><div class="t">An ontology (Stage 3 only)</div>An <code>.owl</code>/<code>.ttl</code> file for your subject area. Skip it to get just facts.</div>
+  </div>
+
+  <div class="callout"><span class="h">Mental model</span>You supply the electricity (your model) and,
+  optionally, the blueprint (your ontology). The library is the factory that turns text into
+  structured knowledge.</div>
+</section>
+
+<!-- ============ 02 ============ -->
+<section class="chapter">
+  <div class="chap-num">Chapter 02</div>
+  <h2 class="chap-title">Install &amp; set up</h2>
+  <div class="chap-rule"></div>
+
+  <h3>1 · Install the library</h3>
+  <p>Pick the extras you need — they're additive:</p>
+  <table>
+    <tr><th>Command</th><th>Gives you</th></tr>
+    <tr><td><code>pip install graphrag-stage1</code></td><td>Stage 1 + Stage 2 (facts &amp; frames)</td></tr>
+    <tr><td><code>pip install "graphrag-stage1[ontology]"</code></td><td>+ Stage 3 ontology mapping</td></tr>
+    <tr><td><code>pip install "graphrag-stage1[validation]"</code></td><td>+ <code>validate()</code> output checking</td></tr>
+    <tr><td><code>pip install "graphrag-stage1[anthropic]"</code></td><td>+ built-in Claude client</td></tr>
+    <tr><td><code>pip install "graphrag-stage1[openai]"</code></td><td>+ built-in OpenAI client</td></tr>
+  </table>
+  <p>Most users want everything:</p>
+  <pre><code>pip install "graphrag-stage1[ontology,validation,anthropic]"</code></pre>
+
+  <h3>2 · Give it access to your model</h3>
+  <p>For the built-in clients, set the standard environment variable:</p>
+  <pre><code>export ANTHROPIC_API_KEY=sk-...      # or OPENAI_API_KEY=sk-...</code></pre>
+
+  <h3>3 · Turn your PDF into text</h3>
+  <p>The library reads text. A few lines with PyMuPDF handle most PDFs:</p>
+  <pre><code>pip install pymupdf</code></pre>
+  <pre><code>import fitz  # PyMuPDF
+text = "\n\n".join(page.get_text() for page in fitz.open("paper.pdf"))</code></pre>
+  <div class="callout"><span class="h">On AWS</span>Use <strong>Amazon Textract</strong> for the
+  PDF&rarr;text step. For scientific papers with complex layout, <strong>GROBID</strong> gives cleaner results.</div>
+
+  <h3>4 · (Optional) Place your ontology</h3>
+  <p>For Stage 3, have your domain ontology file ready (Chapter 6). Skip this to get just facts.</p>
+</section>
+
+<!-- ============ 03 ============ -->
+<section class="chapter">
+  <div class="chap-num">Chapter 03</div>
+  <h2 class="chap-title">Your first run</h2>
+  <div class="chap-rule"></div>
+  <p class="lead">The entire program is a few lines. Here it is, then a walk-through.</p>
+
+  <pre><code>from graphrag_stage1 import AnthropicClient, analyze_paper, validate
+
+text = open("paper.txt", encoding="utf-8").read()
+
+results = analyze_paper(
+    text,
+    client=AnthropicClient(),          # your model
+    max_concurrency=16,                # speed dial
+    domain_ontology="my_domain.owl",   # omit this line to skip Stage 3
+)
+
+for r in results:                      # one entry per paragraph, in order
+    if "error" in r:                   # a failed paragraph never stops the run
+        continue
+    for fact in r["stage1"]["statements"]:
+        print(fact["facets"]["relation"], "|", fact["text"])</code></pre>
+
+  <h4>What each line does</h4>
+  <ul>
+    <li><code>AnthropicClient()</code> — the model. Reads <code>ANTHROPIC_API_KEY</code>. Swap for
+      <code>OpenAIClient()</code>, <code>OllamaClient()</code>, or your own (Chapter 5).</li>
+    <li><code>analyze_paper(text, …)</code> — splits the text into paragraphs and runs all stages in parallel.</li>
+    <li><code>max_concurrency=16</code> — how many model calls run at once (Chapter 8).</li>
+    <li><code>domain_ontology=…</code> — loads the core ontologies plus your domain file and runs
+      Stage 3. Leave it out for Stage 1 + 2 only.</li>
+    <li><code>results</code> — a list, one item per paragraph, in the same order as the paper.</li>
+  </ul>
+
+  <div class="callout good"><span class="h">What you'll see</span>Lines like
+  <code>CAUSATION | The fused sensor data reduced positioning error by 35 percent.</code> —
+  each extracted fact and its relationship type.</div>
+</section>
+
+<!-- ============ 04 ============ -->
+<section class="chapter">
+  <div class="chap-num">Chapter 04</div>
+  <h2 class="chap-title">Reading the results</h2>
+  <div class="chap-rule"></div>
+  <p class="lead"><code>results</code> is a list — one entry per paragraph. Each entry has
+  <code>stage1</code>, <code>stage2</code>, and (if you passed an ontology) <code>stage3</code>.</p>
+
+  <h4>The most useful part: the facts</h4>
+  <pre><code>fact = results[0]["stage1"]["statements"][0]
+
+fact["text"]                # "The fused sensor data reduced positioning error by 35 percent."
+fact["facets"]["relation"]  # "CAUSATION"
+fact["facets"]["modality"]  # "OBSERVED"   (fact vs. prediction vs. hypothesis)
+fact["facets"]["polarity"]  # "POSITIVE"   (or "NEGATED")
+fact["provenance"]          # where it came from: char span, page, verbatim source text
+fact["confidence"]["overall"]   # a number (see the note in Chapter 10)</code></pre>
+
+  <h4>What every field tells you</h4>
+  <table>
+    <tr><th>You want…</th><th>Read this</th></tr>
+    <tr><td>The fact, in plain words</td><td><code>fact["text"]</code></td></tr>
+    <tr><td>Its labels (cause, measurement, prediction…)</td><td><code>fact["facets"]</code></td></tr>
+    <tr><td>Where it came from (the citation)</td><td><code>fact["provenance"]</code></td></tr>
+    <tr><td>Reasoning links between facts</td><td><code>results[i]["stage1"]["relations"]</code></td></tr>
+    <tr><td>The verified, field-by-field version</td><td><code>results[i]["stage2"]["frames"]</code></td></tr>
+    <tr><td>The knowledge-graph mapping</td><td><code>results[i]["stage3"]</code></td></tr>
+  </table>
+
+  <h4>Check the output is well-formed</h4>
+  <pre><code>from graphrag_stage1 import validate
+validate(results[0]["stage1"])   # returns it, or raises if the shape is wrong
+validate(results[0]["stage2"])</code></pre>
+
+  <div class="callout"><span class="h">Failed paragraphs</span>If a paragraph couldn't be processed,
+  its entry is <code>{"error": "...", "paragraph_id": "..."}</code> instead — check for <code>"error"</code>
+  before reading <code>"stage1"</code>. One failure never stops the rest of the paper.</div>
+</section>
+
+<!-- ============ 05 ============ -->
+<section class="chapter">
+  <div class="chap-num">Chapter 05</div>
+  <h2 class="chap-title">Choose your model</h2>
+  <div class="chap-rule"></div>
+  <p class="lead">The library works with any model that can return JSON. Built-ins cover the common
+  cases with zero code; anything else is a tiny adapter.</p>
+
+  <h4>Built-in (no code)</h4>
+  <pre><code>from graphrag_stage1 import AnthropicClient, OpenAIClient
+
+AnthropicClient()                              # default Claude, reads ANTHROPIC_API_KEY
+AnthropicClient(model="claude-sonnet-5")       # pick any model
+OpenAIClient(model="gpt-4o-mini")              # reads OPENAI_API_KEY</code></pre>
+
+  <h4>Any OpenAI-compatible endpoint (vLLM, Groq, Together, local servers)</h4>
+  <pre><code>import openai
+from graphrag_stage1 import OpenAIClient
+client = OpenAIClient(sdk=openai.OpenAI(base_url="http://my-server/v1", api_key="..."))</code></pre>
+
+  <h4>Local, offline (Ollama)</h4>
+  <pre><code>from graphrag_stage1 import OllamaClient
+client = OllamaClient(model="qwen3:8b")   # talks to a local Ollama server</code></pre>
+
+  <h4>Your own model — implement one method</h4>
+  <pre><code>class MyClient:
+    model_id = "my-provider/my-model"      # recorded in every result's provenance
+    def complete(self, prompt, schema, *, stronger=False):
+        # call your model; force JSON matching `schema`; return the dict
+        ...</code></pre>
+
+  <div class="callout warn"><span class="h">Two things to know</span>
+  <strong>Speed &amp; quality</strong> depend on the model you choose — a fast model (Haiku,
+  gpt-4o-mini) for throughput, a stronger one for accuracy. And your <code>complete</code> is called
+  from many threads at once, so it must be <strong>thread-safe</strong> (the built-ins already are).</div>
+
+  <div class="callout"><span class="h">See also</span>A full runnable cookbook for every provider —
+  Claude, GPT, Azure, Bedrock, Gemini, vLLM, Ollama — with pros/cons is in
+  <code>examples/model_clients.py</code> and <code>docs/CHOOSING_A_MODEL.md</code>.</div>
+</section>
+
+<!-- ============ 06 ============ -->
+<section class="chapter">
+  <div class="chap-num">Chapter 06</div>
+  <h2 class="chap-title">Use your own ontology</h2>
+  <div class="chap-rule"></div>
+  <p class="lead">Three foundational ontologies (BFO, IAO, CCO) are always loaded. You add
+  one domain ontology — the one that matches your papers.</p>
+
+  <h4>Where files live</h4>
+  <pre><code>ontologies/
+├── bfo.owl                     always loaded  (required)
+├── iao.owl                     always loaded  (required)
+├── CommonCoreOntologies*.ttl   always loaded  (required)
+├── Relations/  Alignment/      supporting files (leave as-is)
+└── Domain/&lt;your_ontology&gt;.owl   &larr; YOUR file goes here</code></pre>
+
+  <h4>Two ways to plug in your domain ontology</h4>
+  <pre><code># Option A — pass the path directly (easiest):
+results = analyze_paper(text, client=c, domain_ontology="/path/to/my_domain.owl")
+
+# Option B — drop the file into ontologies/Domain/ and point at it:
+results = analyze_paper(text, client=c, domain_ontology="ontologies/Domain/my_domain.owl")</code></pre>
+  <p>You can also point at a <em>folder</em> of ontology files, not just one.</p>
+
+  <h4>What makes a good domain ontology</h4>
+  <ul>
+    <li>A proper OWL/RDF file: <code>.owl</code>, <code>.ttl</code>, <code>.rdf</code>, <code>.nt</code>,
+      <code>.n3</code>, or <code>.jsonld</code>.</li>
+    <li><strong>Human-readable labels</strong> on its classes and properties — that's what your facts get matched against.</li>
+    <li>Ideally built on BFO (like CCO), so it stacks cleanly onto the core.</li>
+  </ul>
+
+  <div class="callout good"><span class="h">Plug-and-play</span>There are no hardcoded domain terms in the
+  code — it reads the labels inside whatever ontology you load. Swap the file, and the mapping targets
+  change with it. Terms it can't map confidently are logged, never guessed.</div>
+</section>
+
+<!-- ============ 07 ============ -->
+<section class="chapter">
+  <div class="chap-num">Chapter 07</div>
+  <h2 class="chap-title">Produce the Neptune file</h2>
+  <div class="chap-rule"></div>
+  <p class="lead">Stage 3 gives you the mapping. One more call turns it into the N-Quads file
+  you upload to a graph database.</p>
+
+  <pre><code>from graphrag_stage1.stage3_neptune_export import export_neptune_nquads
+
+meta = export_neptune_nquads(
+    results[0]["stage3"],
+    destination="paragraph0.nq",                    # &larr; the file to upload
+    quarantine_destination="rejected.ttl",          # optional: what was filtered out
+    report_destination="report.txt",                # optional: the validation report
+)
+print(meta["validated_triple_count"], "triples ->", meta["destination"])</code></pre>
+
+  <h4>What happens in that call</h4>
+  <ul>
+    <li>The mapped facts are turned into RDF triples, each document in its own <em>named graph</em>.</li>
+    <li>A <strong>SHACL validation</strong> gate checks every triple. Clean ones go to the <code>.nq</code>
+      file; bad ones are <em>quarantined</em> to a separate file and never uploaded.</li>
+    <li>You get back a summary: how many triples passed, how many were quarantined.</li>
+  </ul>
+
+  <h4>Then load it</h4>
+  <pre><code>Upload  *.nq  →  S3  →  run the Neptune bulk loader</code></pre>
+
+  <div class="callout warn"><span class="h">Neptune does not reason for you</span>Loading the file into
+  Neptune stores and lets you query the facts — it does <strong>not</strong> automatically infer new ones
+  from the ontology. OWL reasoning (deriving implied facts) is a separate step you add afterward if you
+  want it. It is not part of this library.</div>
+</section>
+
+<!-- ============ 08 ============ -->
+<section class="chapter">
+  <div class="chap-num">Chapter 08</div>
+  <h2 class="chap-title">Make it fast</h2>
+  <div class="chap-rule"></div>
+  <p class="lead">There is one dial that matters, and one simple formula.</p>
+
+  <p class="big-q">time &asymp; (number of model calls &times; latency per call) &divide; max_concurrency</p>
+
+  <p>Paragraphs are independent, so the library runs them in parallel. <code>max_concurrency</code> caps
+  how many model calls happen at once — raise it to go faster, but keep it at or below your provider's
+  rate limit.</p>
+
+  <pre><code>analyze_paper(text, client=c, max_concurrency=16,   # total calls at once
+              stage2_concurrency=6)                  # per-paragraph fan-out</code></pre>
+
+  <table>
+    <tr><th>Setup</th><th>~50-paragraph paper</th><th>Why</th></tr>
+    <tr><td><strong>Hosted API</strong> (Claude/OpenAI/Bedrock), concurrency 16</td><td><strong>~1 minute</strong></td><td>Many calls truly run in parallel.</td></tr>
+    <tr><td><strong>Single local GPU</strong> (Ollama 8B)</td><td>tens of minutes</td><td>The GPU serializes calls — concurrency can't help.</td></tr>
+  </table>
+
+  <div class="callout"><span class="h">Rule of thumb</span>Set <code>max_concurrency</code> to your API's
+  safe concurrent-request budget. Too low = slow; too high = rate-limit errors. For sub-2-minute papers,
+  use a hosted or scalable endpoint — a single local GPU can't get there.</div>
+</section>
+
+<!-- ============ 09 ============ -->
+<section class="chapter">
+  <div class="chap-num">Chapter 09</div>
+  <h2 class="chap-title">Recipes &amp; cheat sheet</h2>
+  <div class="chap-rule"></div>
+  <p class="lead">Common tasks, ready to copy.</p>
+
+  <h4>Get just the facts as plain text</h4>
+  <pre><code>facts = [s["text"] for r in results if "stage1" in r
+                    for s in r["stage1"]["statements"]]</code></pre>
+
+  <h4>Keep only causal facts</h4>
+  <pre><code>causal = [s for r in results if "stage1" in r
+              for s in r["stage1"]["statements"]
+              if s["facets"]["relation"] in ("CAUSATION", "MECHANISM")]</code></pre>
+
+  <h4>Keep only high-confidence facts</h4>
+  <pre><code>strong = [s for r in results if "stage1" in r
+              for s in r["stage1"]["statements"]
+              if s["confidence"]["overall"] &gt;= 0.8]</code></pre>
+
+  <h4>Process a whole folder, streaming progress</h4>
+  <pre><code>import glob
+from graphrag_stage1 import run_paper, split_paragraphs
+
+def on_done(i, r):
+    print("finished paragraph", i)
+
+for path in glob.glob("papers/*.txt"):
+    paras = split_paragraphs(open(path, encoding="utf-8").read())
+    results = run_paper(paras, client=c, max_concurrency=16, on_result=on_done)</code></pre>
+
+  <h4>The full quick-reference</h4>
+  <table>
+    <tr><th>To get…</th><th>Call / read</th></tr>
+    <tr><td>Facts + frames (+ graph) for a paper</td><td><code>analyze_paper(text, client=c[, domain_ontology=…])</code></td></tr>
+    <tr><td>Facts for one paragraph</td><td><code>process_paragraph(text, client=c)</code></td></tr>
+    <tr><td>The Neptune file</td><td><code>export_neptune_nquads(r["stage3"], "out.nq")</code></td></tr>
+    <tr><td>The facts</td><td><code>r["stage1"]["statements"]</code></td></tr>
+    <tr><td>The reasoning links</td><td><code>r["stage1"]["relations"]</code></td></tr>
+    <tr><td>Validate an output</td><td><code>validate(r["stage1"])</code></td></tr>
+  </table>
+</section>
+
+<!-- ============ 10 ============ -->
+<section class="chapter">
+  <div class="chap-num">Chapter 10</div>
+  <h2 class="chap-title">Troubleshooting &amp; FAQ</h2>
+  <div class="chap-rule"></div>
+
+  <h4>"No module named graphrag_stage1"</h4>
+  <p>It isn't installed in the environment you're running. Run <code>pip install …</code> in the same
+  Python/venv, or install it into your container image.</p>
+
+  <h4>"It won't take my PDF"</h4>
+  <p>Correct — it reads <strong>text</strong>, not PDFs. Convert first with PyMuPDF/Textract/GROBID
+  (Chapter 2), then pass the text.</p>
+
+  <h4>Stage 3 gives an empty or thin graph</h4>
+  <p>Usually a <strong>domain-ontology mismatch</strong> — the ontology doesn't cover your paper's
+  subject, so terms fail closed (by design). Use an ontology that matches your field, with good labels.</p>
+
+  <h4>Rate-limit / throttling errors</h4>
+  <p>Lower <code>max_concurrency</code> to your provider's limit. That single cap controls total calls in flight.</p>
+
+  <h4>It's slow</h4>
+  <p>You're likely on a single local GPU (which serializes) or <code>max_concurrency</code> is low. Use a
+  hosted/scalable endpoint and raise the cap (Chapter 8).</p>
+
+  <h4>Structured-output / JSON errors from my custom model</h4>
+  <p>Your <code>complete</code> must return a dict matching the given <code>schema</code>. Use your
+  provider's tool-calling / JSON-schema mode (the built-in clients show the pattern). Very small local
+  models sometimes can't do reliable structured output.</p>
+
+  <div class="callout warn"><span class="h">About the confidence scores</span>
+  Trust the <strong>structure, the exact numbers, and the provenance</strong> today — those are
+  deterministic guarantees. The numeric <strong>confidence values are not yet calibrated</strong> (the
+  evaluation set is still small), so don't gate important decisions purely on them.</div>
+
+  <div class="callout good"><span class="h">Where to go next</span>
+  <code>DOCUMENTATION.md</code> — the complete field-by-field API reference. &nbsp;
+  <code>INTEGRATION.md</code> — integrating into another system. &nbsp;
+  <code>DESIGN.md</code> — how and why it works inside.</div>
+
+  <div class="footer-note">graphrag&#95;stage1 · v0.1.0 · FIELD MANUAL · install &rsaquo; analyze_paper &rsaquo; read results &rsaquo; export the graph</div>
+</section>
+
+<!-- ============ 11 ============ -->
+<section class="chapter">
+  <div class="chap-num">Chapter 11</div>
+  <h2 class="chap-title">Jupyter Notebook Workflow</h2>
+  <div class="chap-rule"></div>
+  <p class="lead">A complete, runnable notebook is at <code>examples/jupyter_usage_demo.ipynb</code>. Open it, run the cells, and adapt to your papers.</p>
+
+  <h4>Open it</h4>
+  <pre><code>jupyter lab examples/jupyter_usage_demo.ipynb
+# or
+jupyter notebook examples/jupyter_usage_demo.ipynb</code></pre>
+
+  <h4>What's inside (9 sections)</h4>
+  <table>
+    <tr><th>Section</th><th>Covers</th></tr>
+    <tr><td>1. Installation</td><td><code>%pip install graphrag-stage1</code> + optional extras (<code>[ontology]</code>, <code>[anthropic]</code>, <code>[openai]</code>, <code>[dev]</code>)</td></tr>
+    <tr><td>2. Imports & LLM Client</td><td>All imports; choose Anthropic, OpenAI, Ollama, or custom <code>LLMClient</code></td></tr>
+    <tr><td>3. Stage 1 Only</td><td><code>process_paragraph()</code> &rarr; Knowledge Artifact Graph (propositions, discourse relations, coreference)</td></tr>
+    <tr><td>4. Stage 1 &rarr; 2</td><td><code>stage2_pipeline()</code> &rarr; Semantic frames with typed slots, grounding checks, confidence</td></tr>
+    <tr><td>5. Stage 3 (Ontology)</td><td><code>OntologyManager</code> + <code>run_pipeline(ontology=...)</code> &rarr; RDF/JSON-LD + Turtle export</td></tr>
+    <tr><td>6. Full Paper</td><td><code>analyze_paper()</code> / <code>run_paper()</code> for multi-paragraph parallel processing</td></tr>
+    <tr><td>7. Validation</td><td><code>validate()</code> against versioned JSON Schemas</td></tr>
+    <tr><td>8. Exploration & Debugging</td><td>Inspect provenance, mapping audits, enable debug logging</td></tr>
+    <tr><td>9. Patterns & Tips</td><td>Custom clients, checkpointing, error handling, performance tuning, output formats</td></tr>
+  </table>
+
+  <h4>Minimal runnable example (3 cells)</h4>
+  <pre><code># Cell 1: Install
+%pip install graphrag-stage1
+
+# Cell 2: Imports + client
+from graphrag_stage1 import run_pipeline, OllamaClient
+client = OllamaClient()  # or AnthropicClient(), OpenAIClient()
+
+# Cell 3: Run pipeline
+text = "The fused sensor data reduced positioning error by 42% because it provides a more complete state estimate."
+result = run_pipeline(text, client=client, paragraph_id="demo:p1")
+
+# Cell 4: Inspect outputs
+kag = result["stage1"]      # Knowledge Artifact Graph
+frames = result["stage2"]   # Validated semantic frames
+
+print(f"Propositions: {len(kag['propositions'])}")
+print(f"Frames: {len(frames['frames'])}")
+for f in frames["frames"]:
+    print(f"  {f['frame_type']}: confidence={f['confidence']:.2f}")</code></pre>
+
+  <h4>With Stage 3 (ontology mapping)</h4>
+  <pre><code># Requires: %pip install "graphrag-stage1[ontology]"
+# And: ontologies/ directory with core + your domain ontology
+
+from graphrag_stage1.ontology_manager import OntologyManager
+
+ontology = OntologyManager("ontologies").load_all(domain_ontology="Domain/your_domain.owl")
+
+result = run_pipeline(
+    text, client=client, paragraph_id="demo:p1",
+    ontology=ontology  # <-- triggers Stage 3
+)
+
+stage3 = result["stage3"]
+print(f"Mapped frames: {len(stage3['mapped_frames'])}")
+print(f"Ontology individuals: {len(stage3['ontology_individuals'])}")
+
+# Export for Neptune / GraphDB
+from graphrag_stage1.stage3_jsonld import build_jsonld
+jsonld = build_jsonld(stage3)
+import json
+with open("output.jsonld", "w") as f:
+    json.dump(jsonld, f, indent=2)</code></pre>
+
+  <h4>Key patterns for notebook workflows</h4>
+  <table>
+    <tr><th>Pattern</th><th>Code snippet</th></tr>
+    <tr><td>Checkpointing</td><td><code>run_paper(paras, client=c, on_result=lambda i, r: save_checkpoint(i, r))</code></td></tr>
+    <tr><td>Error handling</td><td><code>if "error" in r: log(r["error"]); continue</code></td></tr>
+    <tr><td>Provenance citation</td><td><code>prop["provenance"]["source_statement"]</code> gives verbatim text span</td></tr>
+    <tr><td>Debug LLM calls</td><td><code>logging.getLogger("graphrag_stage1.llm").setLevel(logging.DEBUG)</code></td></tr>
+    <tr><td>Batch + aggregate</td><td>Collect all <code>stage3["mapped_frames"]</code> &rarr; merge &rarr; single KG</td></tr>
+  </table>
+
+  <h4>Environment variables for local development</h4>
+  <pre><code># .env or shell export
+export STAGE1_MODEL="qwen3:8b"
+export STAGE2_MODEL="qwen3:8b"
+export STAGE2_STRONGER_MODEL="qwen3:14b"
+export OLLAMA_URL="http://localhost:11434/api/generate"
+
+# Or set in notebook:
+import os
+os.environ["STAGE1_MODEL"] = "qwen3:8b"
+os.environ["STAGE2_MODEL"] = "qwen3:8b"</code></pre>
+
+  <div class="callout good"><span class="h">Full reference</span>
+  <code>DOCUMENTATION.md</code> &sect;21 has the complete notebook guide with all sections.</div>
+
+  <div class="footer-note">graphrag&#95;stage1 &middot; v0.1.0 &middot; FIELD MANUAL &middot; install &rsaquo; analyze_paper &rsaquo; read results &rsaquo; export the graph</div>
+</section>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
