@@ -411,26 +411,51 @@ print(meta["validated_triple_count"], "triples ->", meta["destination"])</code><
   <div class="chap-num">Chapter 08</div>
   <h2 class="chap-title">Make it fast</h2>
   <div class="chap-rule"></div>
-  <p class="lead">There is one dial that matters, and one simple formula.</p>
+  <p class="lead">Which dial matters depends entirely on whether your model endpoint can scale.</p>
+
+  <h4>On a hosted API: turn up the concurrency</h4>
+  <p>Paragraphs are independent, so the library runs them in parallel. On an endpoint that
+  scales, more concurrent calls really do finish sooner:</p>
 
   <p class="big-q">time &asymp; (number of model calls &times; latency per call) &divide; max_concurrency</p>
-
-  <p>Paragraphs are independent, so the library runs them in parallel. <code>max_concurrency</code> caps
-  how many model calls happen at once — raise it to go faster, but keep it at or below your provider's
-  rate limit.</p>
 
   <pre><code>analyze_paper(text, client=c, max_concurrency=16,   # total calls at once
               stage2_concurrency=6)                  # per-paragraph fan-out</code></pre>
 
+  <p>Set <code>max_concurrency</code> to your provider's safe concurrent-request budget. Too low
+  is slow; too high gets you rate-limited. A ~50-paragraph paper lands in <strong>about a
+  minute</strong>.</p>
+
+  <h4>On a single local GPU: that formula stops working</h4>
+  <p>Raising <code>max_concurrency</code> past a few does nothing. The GPU is not queueing your
+  calls politely — it is already <strong>saturated at 97&ndash;98% utilisation</strong>, and extra
+  concurrent requests simply time-slice the same silicon. You must make the model do
+  <em>less work</em>, not give it more work at once.</p>
+
+  <p>Where the time actually goes, measured on one paragraph (qwen3, laptop RTX 5080):</p>
+
   <table>
-    <tr><th>Setup</th><th>~50-paragraph paper</th><th>Why</th></tr>
-    <tr><td><strong>Hosted API</strong> (Claude/OpenAI/Bedrock), concurrency 16</td><td><strong>~1 minute</strong></td><td>Many calls truly run in parallel.</td></tr>
-    <tr><td><strong>Single local GPU</strong> (Ollama 8B)</td><td>tens of minutes</td><td>The GPU serializes calls — concurrency can't help.</td></tr>
+    <tr><th>Call</th><th>Reading the prompt</th><th>Writing the answer</th></tr>
+    <tr><td>Stage 1 (decompose)</td><td>0.1 s &mdash; 749 tokens</td><td>2.5 s &mdash; 117 tokens</td></tr>
+    <tr><td><strong>Stage 2 (one frame)</strong></td><td>0.5 s &mdash; 2,184 tokens</td><td><strong>18.7 s &mdash; 819 tokens</strong></td></tr>
   </table>
 
-  <div class="callout"><span class="h">Rule of thumb</span>Set <code>max_concurrency</code> to your API's
-  safe concurrent-request budget. Too low = slow; too high = rate-limit errors. For sub-2-minute papers,
-  use a hosted or scalable endpoint — a single local GPU can't get there.</div>
+  <p><strong>Reading is nearly free; writing is the entire cost.</strong> A Stage 2 frame writes
+  about seven times as many tokens as a Stage 1 call, and Stage 2 runs once per fact rather than
+  once per paragraph. That is your bottleneck.</p>
+
+  <h4>The three levers that actually work</h4>
+  <table>
+    <tr><th>Lever</th><th>How</th><th>Effect</th></tr>
+    <tr><td><strong>A smaller model for Stage 2</strong></td><td><code>stage2_client=OllamaClient(model="qwen3:4b")</code></td><td>Stage 2 is form-filling, not deep reasoning — it doesn't need your best model.</td></tr>
+    <tr><td><strong>Skip the model where the answer is already known</strong></td><td><code>STAGE2_HYBRID=1</code></td><td>Measurements, classifications, mechanisms and methods get built from Stage 1's own output — no call at all.</td></tr>
+    <tr><td><strong>Drop the retry pass</strong></td><td><code>STAGE2_MAX_RETRIES=0</code></td><td>Each reprocessed fact is a second full call. Costs you the auto-repair pass.</td></tr>
+  </table>
+
+  <div class="callout"><span class="h">Don't bother</span>Shrinking or batching prompts. Reading
+  the prompt is only ~3% of a Stage 2 call, so there is nothing there to win. And if you're on
+  Ollama, set <code>OLLAMA_MAX_LOADED_MODELS=2</code> so an 8B Stage 1 and a 4B Stage 2 stay in
+  memory together instead of being swapped in and out on every paragraph.</div>
 </section>
 
 <!-- ============ 09 ============ -->
