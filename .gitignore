@@ -21,6 +21,10 @@ env/
 out/
 exports/
 
+# Pipeline run output: results.json is multi-megabyte and the .nq files are
+# regenerable. Kept on disk (they are the deliverable) but never committed.
+examples/*_output/
+
 # Personal scratch inputs
 my_paper.txt
 

@@ -10,9 +10,6 @@ from .llm import LLMClient, OllamaClient, resolved_model_name
 
 MAX_REPROCESS_ATTEMPTS = int(os.getenv("STAGE2_MAX_RETRIES", "1"))
 STAGE2_CONCURRENCY = max(1, int(os.getenv("STAGE2_CONCURRENCY", "2")))
-# Hybrid mode: try to fill the frame from Stage 1 structure + the deterministic
-# measurement pass, and only call the model for statements that come up short.
-STAGE2_HYBRID = os.getenv("STAGE2_HYBRID", "0") not in ("", "0", "false", "False")
 # Batch N statements into one model call instead of one call each. 0/1 disables.
 # Needs a context window big enough for N frames of output (~800 tokens each) --
 # on Ollama, set OllamaClient(num_ctx=...) accordingly or the batch silently truncates.
@@ -1275,94 +1272,6 @@ def extract_semantic_frame(
     }
 
 
-def _stage1_argument(statement: dict, role: str) -> str | None:
-    for argument in statement.get("arguments", []) or []:
-        if argument.get("role") == role and argument.get("text"):
-            return argument["text"]
-    return None
-
-
-def build_deterministic_frame(statement: dict, stage1_output: dict) -> dict:
-    """Fill a Stage 2 frame from Stage 1 structure alone -- no model call.
-
-    Stage 1 already classifies each statement with a ``predicate`` and ``arg1`` /
-    ``arg2`` (see stage1_classifier.CLASSIFY_SCHEMA), and ``extract_measurements``
-    recovers quantities by rule. For many artifact types that is precisely the set
-    of fields ``REQUIRED_FRAME_FIELDS`` demands, so re-deriving them with the model
-    is wasted decoding. Fields the model alone can supply (``property``, ``process``,
-    ``value``, ``condition``, ``basis``, ``context``) are left unset -- the caller
-    escalates when the deterministic validator reports them missing.
-    """
-    arg1 = _stage1_argument(statement, "arg1")
-    arg2 = _stage1_argument(statement, "arg2")
-    predicate = statement.get("predicate")
-    artifact_type = derive_artifact_type(statement, stage1_output)
-    measurements = extract_measurements(statement.get("text", ""))
-    first = measurements[0] if measurements else {}
-
-    # MECHANISM/METHOD define `process` as the mechanism/method process, and Stage 1
-    # defines `predicate` as the statement's main verb lemma -- the same thing, and
-    # grounded in the source, so _grounded() still gates it. `property` and `value`
-    # are NOT derivable this way (a CAUSAL_RELATION's `property` is the affected
-    # property, not the verb), so they are left for the model.
-    process = predicate if artifact_type in {"MECHANISM", "METHOD"} else None
-
-    semantic = {
-        "primary_entity": arg1,
-        "secondary_entity": arg2,
-        "property": None,
-        "value": None,
-        "process": process,
-        "condition": None,
-        "basis": None,
-        "context": None,
-        "measurement_value": str(first["value"]) if first.get("value") is not None else None,
-        "unit": first.get("unit"),
-    }
-    return {
-        "semantic_frame": semantic,
-        "candidate_entities": [text for text in (arg1, arg2) if text],
-        # Left empty on purpose: deterministic_validation already synthesises the
-        # candidate relation from the Stage 1 predicate + arguments (its
-        # "stage1_predicate_argument_fallback"), and it owns the exact key names.
-        "candidate_relations": [],
-        "reference_resolutions": [],
-        # 95% of the composite score is deterministic; the LLM term contributes 5%
-        # and is simply absent on this path (see apply_deterministic_confidence).
-        "confidence": 0.0,
-    }
-
-
-def _frame_is_complete(frame: dict, artifact_type: str) -> bool:
-    """True when the rule-built frame already satisfies the Stage 2 quality gate."""
-    validation = frame.get("validation", {})
-    if validation.get("missing_required_fields") or validation.get("grounding_errors"):
-        return False
-    if validation.get("ambiguous_terms"):
-        return False
-    return validation.get("automation_action") == "PASS_TO_ONTOLOGY_MAPPING"
-
-
-def extract_deterministic_frame(statement: dict, stage1_output: dict) -> dict:
-    """Build and validate a frame with no model call, in the shape of extract_semantic_frame."""
-    artifact_type = derive_artifact_type(statement, stage1_output)
-    frame = postprocess_frame(
-        build_deterministic_frame(statement, stage1_output),
-        artifact_type,
-        statement,
-        stage1_output,
-    )
-    return {
-        "statement_id": statement.get("id"),
-        "source_text": statement.get("text"),
-        "stage1_type": artifact_type,
-        "stage1_facets": get_facets(statement),
-        "provenance": statement.get("provenance", {}),
-        "processing": {"attempt": 0, "model": "deterministic:stage1-structure"},
-        "stage2_frame": frame,
-    }
-
-
 # The semantic_frame slots the model actually has to supply (everything else in a
 # frame is recomputed by postprocess_frame / enrich_semantic_frame).
 SEMANTIC_SLOTS = (
@@ -1475,21 +1384,8 @@ def extract_frames_batch(
     return items
 
 
-def extract_with_routing(
-    statement: dict, stage1_output: dict, client: LLMClient, hybrid: bool | None = None
-) -> dict:
-    """Execute bounded automated reprocessing routes and return the last attempt.
-
-    With ``hybrid`` enabled, a rule-built frame is tried first and the model is
-    called only when it fails the same deterministic gate every frame must pass.
-    """
-    hybrid = STAGE2_HYBRID if hybrid is None else hybrid
-    if hybrid:
-        item = extract_deterministic_frame(statement, stage1_output)
-        artifact_type = item["stage1_type"]
-        if _frame_is_complete(item["stage2_frame"], artifact_type):
-            return item  # required fields already grounded in Stage 1 -- no model call
-
+def extract_with_routing(statement: dict, stage1_output: dict, client: LLMClient) -> dict:
+    """Execute bounded automated reprocessing routes and return the last attempt."""
     item = extract_semantic_frame(statement, stage1_output, client)
     for retry in range(MAX_REPROCESS_ATTEMPTS):
         frame = item["stage2_frame"]

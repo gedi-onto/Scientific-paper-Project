@@ -550,17 +550,17 @@ is not the whole story — **Stage 2 is decode-bound**. Measured on one paragrap
 | Stage 2 frame | 2,184 tok | 0.5 s (4.7k tok/s) | **819 tok** | **18.7 s** | **91%** |
 
 Prefill is nearly free; generation is not. A Stage 2 frame emits ~7× the tokens of
-a Stage 1 call, and that generation *is* the runtime. Shrinking prompts or batching
-them saves almost nothing.
+a Stage 1 call, and that generation *is* the runtime. Shrinking a prompt saves almost
+nothing.
 
 **But per-call latency is the wrong target.** Stage 2 frames are grounding-checked
 against the source, and a frame that fails is *reprocessed* — a second full call. So
 a weaker, faster model can easily make the run **slower**, by failing more often
 (see the ⚠️ under `stage2_client` in §Orchestration: `qwen3:4b` was both slower *and*
 6× worse than `qwen3:8b` on identical input). What actually reduces wall-clock is
-**fewer total calls**: drop the retry pass (`STAGE2_MAX_RETRIES=0`), skip calls whose
-answer is already known (`STAGE2_HYBRID`, below), or feed Stage 2 fewer, better
-statements. Model quality is a *speed* feature here, not just a quality one.
+**fewer total calls**: batch them (below), drop the retry pass
+(`STAGE2_MAX_RETRIES=0`), or feed Stage 2 fewer, better statements. Model quality is
+a *speed* feature here, not just a quality one.
 
 ### Local GPU vs hosted
 
@@ -572,35 +572,36 @@ statements. Model quality is a *speed* feature here, not just a quality one.
   `OLLAMA_MAX_LOADED_MODELS=2` (so an 8B Stage 1 and 4B Stage 2 stay resident
   together rather than swapping), then reduce generated tokens.
 
-### Hybrid Stage 2 (`STAGE2_HYBRID=1`)
+### Batched Stage 2 — the single biggest lever (`stage2_batch_size`)
 
-Stage 1 already classifies every statement with a `predicate` and `arg1`/`arg2`,
-and `extract_measurements` recovers quantities by rule. For several artifact types
-that is exactly the field set `REQUIRED_FRAME_FIELDS` demands — so asking the model
-to re-derive them costs ~819 tokens of decoding for nothing.
+Stage 2 normally makes **one call per statement**. Batching frames several statements
+in one call, and it is faster *and* more accurate. Measured on 43 identical statements
+(`qwen3:8b`), varying only the batch size:
 
-With `STAGE2_HYBRID=1`, Stage 2 first builds the frame from that existing structure
-and runs it through **the same deterministic gate every frame must pass**:
+| Stage 2 | Time | Frames accepted | Grounding errors |
+|---|---|---|---|
+| no batching | 228.0 s | 25/43 (58%) | 17 |
+| **batch 5** | **130.5 s** | **31/43 (72%)** | **1** |
+| batch 10 | 121.8 s | 28/43 (65%) | 3 |
+| batch 20 | 433.9 s ← worse | 28/43 (65%) | 4 |
 
-| | |
-|---|---|
-| **Skips the model** | `MEASUREMENT`, `CLASSIFICATION`, `MECHANISM`, `METHOD` |
-| **Still calls the model** | all other types — blocked on `property` or `value`, which need semantic judgement no rule can supply |
+**Batch 5 is 1.75× faster and more accurate.** The speedup is not just amortised
+prompt overhead (prefill is only ~3% of a call): showing the model its sibling
+statements measurably improves *grounding*, which collapses the `REPROCESS` retries —
+and every retry was a second full call.
 
-The gate is the safety property: a statement whose rule-built frame is incomplete
-still escalates to the model, so nothing under-filled reaches the graph. Frames
-built this way are stamped `processing.model = "deterministic:stage1-structure"`.
-
-The saving depends entirely on your papers' statement-type mix. Measure it on a
-completed run — no GPU needed:
-
-```bash
-python examples/hybrid_skip_report.py examples/full_run_output/results.json
+```python
+analyze_paper(text, client=c, stage2_batch_size=5)
 ```
 
-It reports the type distribution, the exact fraction of Stage 2 calls eliminated,
-and — for each statement the hybrid would skip — what the model actually produced
-for it, so you can see whether skipping costs quality before enabling the flag.
+**Do not go past ~10.** A batch of N needs roughly N × 800 output tokens, and on
+Ollama that means raising the context window (`OllamaClient(num_ctx=...)`, default
+4096) or the batch silently truncates. At batch 20 the 32K context thrashes VRAM on a
+16 GB card and the run gets *slower*.
+
+Safety: a batch that returns the wrong number of frames, or raises, falls back to the
+proven per-statement path — no facts are dropped. Frames are re-aligned to their
+statements by `statement_id`, not by position.
 
 ---
 
@@ -664,7 +665,7 @@ Read when a **default** client/config is used (you can always pass explicit obje
 | `STAGE2_STRONGER_MODEL` | = `STAGE2_MODEL` | Model used on the `stronger` retry |
 | `STAGE2_MAX_RETRIES` | `1` | Bounded automated reprocessing attempts |
 | `STAGE2_CONCURRENCY` | `2` | Default statement fan-out |
-| `STAGE2_HYBRID` | `0` | Build Stage 2 frames from Stage 1 structure where possible; call the model only for the gaps (see §11) |
+| `STAGE2_BATCH_SIZE` | `0` | Frame N statements per model call. 5 is the sweet spot; do not exceed ~10 (see §11) |
 | `OLLAMA_URL` | `http://localhost:11434/api/generate` | Ollama endpoint |
 | `OLLAMA_TIMEOUT` | `180` | Per-call timeout (s) |
 | `OLLAMA_RETRIES` | `2` | Transport retries |
