@@ -376,16 +376,27 @@ Everything importable from `graphrag_stage1`:
 
 ### Orchestration
 ```python
-analyze_paper(text, *, client, max_concurrency=8, stage2_concurrency=4,
-              ontology=None, domain_ontology=None, ontology_root="ontologies",
-              on_result=None) -> list[dict]
+analyze_paper(text, *, client, stage2_client=None, max_concurrency=8,
+              stage2_concurrency=4, ontology=None, domain_ontology=None,
+              ontology_root="ontologies", on_result=None) -> list[dict]
 ```
 Split raw text into paragraphs and run them in parallel. Pass `domain_ontology`
 (a path) or `ontology` (a prebuilt `OntologyManager`) to also run Stage 3.
 
+`stage2_client` runs Stage 2 on a **separate, usually smaller model**. Stage 2 is
+schema-constrained form-filling and makes the most calls per paragraph, so this is
+the main per-paper latency dial on a local GPU. Both clients share one global
+`max_concurrency` ceiling, so the cap still means what it says:
+
 ```python
-run_paper(paragraphs, *, client, max_concurrency=8, stage2_concurrency=4,
-          ontology=None, on_result=None) -> list[dict]
+analyze_paper(text,
+              client=OllamaClient(model="qwen3:8b"),        # Stage 1: quality
+              stage2_client=OllamaClient(model="qwen3:4b"))  # Stage 2: speed
+```
+
+```python
+run_paper(paragraphs, *, client, stage2_client=None, max_concurrency=8,
+          stage2_concurrency=4, ontology=None, on_result=None) -> list[dict]
 ```
 Same, but you supply the paragraph list. `on_result(index, result)` fires as each
 finishes (for streaming/checkpointing). Order preserved; failures become
@@ -509,16 +520,71 @@ OntologyManager("ontologies/").load_all(domain_ontology="/path/to/my_domain.owl"
 
 Wall-clock ≈ **(total LLM calls × per-call latency) ÷ max_concurrency**.
 
-- **`max_concurrency`** — global cap on in-flight model calls. This is the main
-  speed dial. Set it to your provider's safe concurrent-request budget.
+- **`max_concurrency`** — global cap on in-flight model calls. On a *scalable*
+  endpoint this is the main speed dial: set it to your provider's safe concurrent-
+  request budget.
 - **`BoundedClient`** — enforces that cap no matter how wide the fan-out. `run_paper`
   wraps your client in one automatically.
 - **`stage2_concurrency`** — per-paragraph statement fan-out.
+- **`stage2_client`** — run Stage 2 on a smaller model than Stage 1 (see §Orchestration).
 
-**Rules of thumb (a ~50-paragraph paper ≈ 250–400 calls):**
-- **Hosted API** (Claude/OpenAI/Bedrock), `max_concurrency=16`: **~1 minute**.
-- **Single local GPU** (Ollama 8B): concurrency does **not** help (the GPU
-  serializes) — expect tens of minutes. Use a hosted/scalable endpoint for speed.
+### Where the time actually goes
+
+Per paragraph: Stage 1 makes **3** calls (decompose, recall, batched classify);
+Stage 2 makes **one per statement** (~6) plus any reprocess retries. But call count
+is not the whole story — **Stage 2 is decode-bound**. Measured on one paragraph
+(qwen3, RTX 5080 laptop):
+
+| | prompt | prefill | output | decode | decode share |
+|---|---|---|---|---|---|
+| Stage 1 decompose | 749 tok | 0.1 s (11k tok/s) | 117 tok | 2.5 s | 86% |
+| Stage 2 frame | 2,184 tok | 0.5 s (4.7k tok/s) | **819 tok** | **18.7 s** | **91%** |
+
+Prefill is nearly free; generation is not. A Stage 2 frame emits ~7× the tokens of
+a Stage 1 call, and that generation *is* the runtime. So the levers that work are
+the ones that make the model **write less** — a smaller `stage2_client`, fewer
+retries (`STAGE2_MAX_RETRIES=0`), or skipping the call entirely (`STAGE2_HYBRID`,
+below). Shrinking prompts or batching them saves almost nothing.
+
+### Local GPU vs hosted
+
+- **Hosted API** (Claude/OpenAI/Bedrock), `max_concurrency=16`: **~1 minute** for a
+  ~50-paragraph paper. Concurrency works because the endpoint scales.
+- **Single local GPU**: raising `max_concurrency` past a few does **not** help — the
+  GPU saturates (97–98% utilisation) and extra concurrent requests just time-slice
+  the same silicon. Expect **tens of minutes**. Set `OLLAMA_NUM_PARALLEL` and
+  `OLLAMA_MAX_LOADED_MODELS=2` (so an 8B Stage 1 and 4B Stage 2 stay resident
+  together rather than swapping), then reduce generated tokens.
+
+### Hybrid Stage 2 (`STAGE2_HYBRID=1`)
+
+Stage 1 already classifies every statement with a `predicate` and `arg1`/`arg2`,
+and `extract_measurements` recovers quantities by rule. For several artifact types
+that is exactly the field set `REQUIRED_FRAME_FIELDS` demands — so asking the model
+to re-derive them costs ~819 tokens of decoding for nothing.
+
+With `STAGE2_HYBRID=1`, Stage 2 first builds the frame from that existing structure
+and runs it through **the same deterministic gate every frame must pass**:
+
+| | |
+|---|---|
+| **Skips the model** | `MEASUREMENT`, `CLASSIFICATION`, `MECHANISM`, `METHOD` |
+| **Still calls the model** | all other types — blocked on `property` or `value`, which need semantic judgement no rule can supply |
+
+The gate is the safety property: a statement whose rule-built frame is incomplete
+still escalates to the model, so nothing under-filled reaches the graph. Frames
+built this way are stamped `processing.model = "deterministic:stage1-structure"`.
+
+The saving depends entirely on your papers' statement-type mix. Measure it on a
+completed run — no GPU needed:
+
+```bash
+python examples/hybrid_skip_report.py examples/full_run_output/results.json
+```
+
+It reports the type distribution, the exact fraction of Stage 2 calls eliminated,
+and — for each statement the hybrid would skip — what the model actually produced
+for it, so you can see whether skipping costs quality before enabling the flag.
 
 ---
 
@@ -582,6 +648,7 @@ Read when a **default** client/config is used (you can always pass explicit obje
 | `STAGE2_STRONGER_MODEL` | = `STAGE2_MODEL` | Model used on the `stronger` retry |
 | `STAGE2_MAX_RETRIES` | `1` | Bounded automated reprocessing attempts |
 | `STAGE2_CONCURRENCY` | `2` | Default statement fan-out |
+| `STAGE2_HYBRID` | `0` | Build Stage 2 frames from Stage 1 structure where possible; call the model only for the gaps (see §11) |
 | `OLLAMA_URL` | `http://localhost:11434/api/generate` | Ollama endpoint |
 | `OLLAMA_TIMEOUT` | `180` | Per-call timeout (s) |
 | `OLLAMA_RETRIES` | `2` | Transport retries |
