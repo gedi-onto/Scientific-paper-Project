@@ -1255,16 +1255,13 @@ def build_deterministic_frame(statement: dict, stage1_output: dict) -> dict:
         "measurement_value": str(first["value"]) if first.get("value") is not None else None,
         "unit": first.get("unit"),
     }
-    entities = [text for text in (arg1, arg2) if text]
-    predicate = statement.get("predicate")
-    relations = []
-    if predicate and arg1 and arg2:
-        relations.append({"subject": arg1, "predicate": predicate, "object": arg2})
-
     return {
         "semantic_frame": semantic,
-        "candidate_entities": entities,
-        "candidate_relations": relations,
+        "candidate_entities": [text for text in (arg1, arg2) if text],
+        # Left empty on purpose: deterministic_validation already synthesises the
+        # candidate relation from the Stage 1 predicate + arguments (its
+        # "stage1_predicate_argument_fallback"), and it owns the exact key names.
+        "candidate_relations": [],
         "reference_resolutions": [],
         # 95% of the composite score is deterministic; the LLM term contributes 5%
         # and is simply absent on this path (see apply_deterministic_confidence).

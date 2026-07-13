@@ -87,11 +87,27 @@ class DeterministicFrameTests(unittest.TestCase):
         semantic = frame["semantic_frame"]
         self.assertEqual(semantic["primary_entity"], "passivation layer")
         self.assertEqual(semantic["secondary_entity"], "recombination")
-        self.assertEqual(
-            frame["candidate_relations"],
-            [{"subject": "passivation layer", "predicate": "reduce", "object": "recombination"}],
-        )
         self.assertEqual(frame["candidate_entities"], ["passivation layer", "recombination"])
+
+    def test_candidate_relations_are_left_to_the_existing_fallback(self):
+        # deterministic_validation synthesises the relation from the Stage 1
+        # predicate and owns the key names (subject/relation/object). Emitting our
+        # own here previously used the wrong key and failed every 2-argument frame.
+        stmt = statement(
+            "SYK is a tyrosine kinase.",
+            "CLASSIFICATION",
+            arg1="SYK",
+            arg2="tyrosine kinase",
+            predicate="be",
+        )
+        self.assertEqual(build_deterministic_frame(stmt, stage1(stmt))["candidate_relations"], [])
+        # ...and after postprocessing, the fallback has filled it in correctly.
+        frame = extract_deterministic_frame(stmt, stage1(stmt))["stage2_frame"]
+        relations = frame["candidate_relations"]
+        self.assertTrue(relations, "the Stage 1 fallback should have built a relation")
+        for key in ("subject", "relation", "object"):
+            self.assertTrue(relations[0].get(key), f"relation missing {key}")
+        self.assertFalse(frame["validation"].get("grounding_errors"))
 
     def test_fills_measurement_by_rule(self):
         stmt = statement(
@@ -146,6 +162,22 @@ class HybridRoutingTests(unittest.TestCase):
             item["stage2_frame"]["validation"]["automation_action"],
             "PASS_TO_ONTOLOGY_MAPPING",
         )
+
+    def test_two_argument_statement_also_skips_the_model(self):
+        # Regression: build_deterministic_frame used to emit candidate_relations with
+        # a `predicate` key instead of `relation`, so deterministic_validation flagged
+        # every 2-argument frame as incomplete and nothing with arg1+arg2 ever skipped.
+        stmt = statement(
+            "SYK is a tyrosine kinase.",
+            "CLASSIFICATION",
+            arg1="SYK",
+            arg2="tyrosine kinase",
+            predicate="be",
+        )
+        client = RecordingClient()
+        item = extract_with_routing(stmt, stage1(stmt), client, hybrid=True)
+        self.assertEqual(client.calls, 0, "CLASSIFICATION has both entities from Stage 1")
+        self.assertEqual(item["processing"]["model"], "deterministic:stage1-structure")
 
     def test_incomplete_frame_still_escalates_to_the_model(self):
         # CAUSAL_RELATION also requires `property`, which no rule can supply --
