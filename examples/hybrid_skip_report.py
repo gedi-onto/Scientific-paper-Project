@@ -35,11 +35,19 @@ def main() -> None:
     by_type: Counter = Counter()
     skipped_by_type: Counter = Counter()
     total = skipped = 0
+    # Quality check: for the statements the hybrid would skip, what did the model
+    # actually produce in the baseline run? If the model also failed the gate on
+    # those, skipping it costs nothing.
+    baseline_action_on_skipped: Counter = Counter()
 
     for para in results:
         if "stage1" not in para:
             continue  # failed paragraph
         stage1 = para["stage1"]
+        baseline_actions = {
+            item.get("statement_id"): item["stage2_frame"]["validation"]["automation_action"]
+            for item in para.get("stage2", {}).get("frames", [])
+        }
         for statement in stage1.get("statements", []):
             artifact_type = derive_artifact_type(statement, stage1)
             by_type[artifact_type] += 1
@@ -48,6 +56,9 @@ def main() -> None:
             if _frame_is_complete(item["stage2_frame"], artifact_type):
                 skipped += 1
                 skipped_by_type[artifact_type] += 1
+                action = baseline_actions.get(statement.get("id"))
+                if action:
+                    baseline_action_on_skipped[action] += 1
 
     if not total:
         raise SystemExit("no Stage 1 statements found in that results file")
@@ -69,6 +80,21 @@ def main() -> None:
         print(f"projected Stage 2 speedup: {1 / (1 - rate):.2f}x")
     print("\nNote: this counts calls, not wall-clock. Stage 2 is decode-bound, so")
     print("saved calls translate roughly 1:1 into saved time. Stage 1 is unchanged.")
+
+    if baseline_action_on_skipped:
+        print("\nQuality: what the MODEL produced for those same skipped statements")
+        print("-" * 50)
+        agreed = baseline_action_on_skipped.get("PASS_TO_ONTOLOGY_MAPPING", 0)
+        for action, count in baseline_action_on_skipped.most_common():
+            print(f"  {action:<34}{count:>6}")
+        total_compared = sum(baseline_action_on_skipped.values())
+        print("-" * 50)
+        print(
+            f"  the model ALSO passed {agreed}/{total_compared} of them "
+            f"({agreed / total_compared * 100:.0f}%)."
+        )
+        print("  Where the model passed too, skipping it costs nothing but the")
+        print("  richer optional fields (property/value/context) it would have filled.")
 
 
 if __name__ == "__main__":
