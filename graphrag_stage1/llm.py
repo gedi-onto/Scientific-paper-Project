@@ -27,6 +27,17 @@ _THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 _FENCE_RE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$", re.IGNORECASE)
 
 
+def _retry_after_seconds(response, default: int) -> float:
+    """How long the server told us to wait, honouring Retry-After when present."""
+    header = response.headers.get("Retry-After") or response.headers.get("retry-after")
+    if header:
+        try:
+            return max(1.0, float(header))
+        except ValueError:
+            pass  # Retry-After may be an HTTP date; fall back to the default
+    return float(default)
+
+
 def _extract_json(raw: str) -> str:
     """Pull the JSON object out of a response that may not be pure JSON.
 
@@ -84,6 +95,11 @@ class OllamaClient:
     # roughly N x 800 output tokens, and anything past the window is silently
     # truncated into invalid JSON. Set this when batching.
     num_ctx: int | None = None
+    # Hosted backends (Ollama Cloud, any metered endpoint) answer 429 when throttled.
+    # These control how patiently we wait it out; they are separate from `retries`,
+    # which exists for transport errors.
+    rate_limit_retries: int = 5
+    rate_limit_backoff: int = 30  # seconds, when the server sends no Retry-After
     label: str = "LLM"  # used only in error messages
 
     @property
@@ -119,7 +135,9 @@ class OllamaClient:
                 f"JSON Schema exactly, including every required key:\n{json.dumps(schema)}"
             )
         last_error: Exception | None = None
-        for attempt in range(self.retries + 1):
+        attempt = 0
+        rate_limit_waits = 0
+        while attempt <= self.retries:
             try:
                 response = requests.post(
                     self.url,
@@ -133,6 +151,21 @@ class OllamaClient:
                     },
                     timeout=self.timeout,
                 )
+                # A hosted backend (Ollama Cloud, any metered API) answers 429 when the
+                # rate limit or quota is hit. That is not a transport blip: retrying it
+                # on the ordinary 1/2/4s backoff just burns the remaining retries and
+                # loses the paragraph. Wait as long as the server asks, and do not count
+                # it against `retries` -- being throttled is not a failure.
+                if response.status_code == 429:
+                    if rate_limit_waits >= self.rate_limit_retries:
+                        raise RuntimeError(
+                            f"Ollama {self.label}: rate limited (429) and still throttled "
+                            f"after {rate_limit_waits} waits -- quota is likely exhausted"
+                        )
+                    delay = _retry_after_seconds(response, default=self.rate_limit_backoff)
+                    rate_limit_waits += 1
+                    time.sleep(delay)
+                    continue
                 response.raise_for_status()
                 raw = response.json()["response"].strip()
                 raw = _THINK_RE.sub("", raw).strip()
@@ -141,6 +174,7 @@ class OllamaClient:
                 last_error = exc
                 if attempt < self.retries:
                     time.sleep(2 ** attempt)
+                attempt += 1
         raise RuntimeError(
             f"Ollama {self.label} failed after {self.retries + 1} attempts"
         ) from last_error
