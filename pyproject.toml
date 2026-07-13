@@ -51,4 +51,7 @@ graphrag_stage1 = ["schemas/*.json"]
 
 [tool.pytest.ini_options]
 # Tests live at the repo root and import the installed/importable package.
-testpaths = ["test_pipeline.py", "test_stage3.py", "test_schemas.py", "test_throughput.py", "test_clients.py"]
+testpaths = [
+    "test_pipeline.py", "test_stage3.py", "test_schemas.py",
+    "test_throughput.py", "test_clients.py", "test_stage2_hybrid.py",
+]
