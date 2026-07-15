@@ -90,9 +90,9 @@ def dedupe_assertions(assertions: list[dict]) -> list[dict]:
 class Stage3OntologyMapper:
     """Map frozen Stage 2 structures exclusively through OntologyManager."""
 
-    def __init__(self, manager: OntologyManager) -> None:
+    def __init__(self, manager: OntologyManager, grounder=None) -> None:
         self.manager = manager
-        self.entity_mapper = EntityMapper(manager)
+        self.entity_mapper = EntityMapper(manager, grounder=grounder)
         self.relation_mapper = RelationMapper(manager)
         self.assertions = AssertionBuilder(manager)
         self.measurements = MeasurementMapper(manager)
@@ -559,8 +559,8 @@ class Stage3OntologyMapper:
         return result
 
 
-def stage3_pipeline(stage2_output: dict, manager: OntologyManager) -> dict:
-    return Stage3OntologyMapper(manager).map_output(stage2_output)
+def stage3_pipeline(stage2_output: dict, manager: OntologyManager, grounder=None) -> dict:
+    return Stage3OntologyMapper(manager, grounder=grounder).map_output(stage2_output)
 
 
 def main() -> None:

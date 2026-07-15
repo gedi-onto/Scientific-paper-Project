@@ -44,9 +44,12 @@ def main() -> None:
     repo = Path(__file__).resolve().parent.parent
     results = json.loads(Path(path).read_text(encoding="utf-8"))
 
-    ontology = OntologyManager(str(repo / "ontologies")).load_all(
-        domain_ontology=str(repo / "ontologies" / "Domain" / "ino_merged.owl")
-    )
+    # No domain_ontology argument -> load EVERY file in ontologies/Domain/. Naming one
+    # file loads only that file, which silently ignores any other domain ontology you
+    # have added (UBERON, ChEBI, ...) and makes it look like they changed nothing.
+    ontology = OntologyManager(str(repo / "ontologies")).load_all()
+    print(f"loaded {len(ontology.class_index):,} class labels "
+          f"from {len(ontology.loaded_files)} files\n")
 
     classes, methods, types = Counter(), Counter(), Counter()
     edges = Counter()

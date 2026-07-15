@@ -98,11 +98,16 @@ def generic_fallback_terms(semantic_type: str) -> tuple[str, ...]:
 
 
 class EntityMapper:
-    def __init__(self, manager: OntologyManager) -> None:
+    def __init__(self, manager: OntologyManager, grounder=None) -> None:
         self.manager = manager
         self.canonicalizer = Canonicalizer()
         self.typer = SemanticTyper()
         self.instances = InstanceGenerator(manager)
+        # Optional OntoGPT/OAK-style lexical grounder. When set, an entity the loaded
+        # ontologies cannot type is looked up against the wider OBO world (ChEBI, PRO,
+        # GO, MONDO, UBERON...) before falling back to a generic upper class. Off by
+        # default: the pipeline stays fully offline unless a grounder is supplied.
+        self.grounder = grounder
 
     def _select_class(
         self, semantic_type: str, canonical: str, typing_recognised: bool = True
@@ -180,7 +185,19 @@ class EntityMapper:
         # class selection and prevents RO/unrelated classes from winning.
         lexical = self.manager.class_candidates(canonical)
 
-        # 4. Last resort: the most general class that is still TRUE of this entity.
+        # 5. Nothing loaded matched. Before giving up to a generic upper class, ask the
+        #    external grounder (OAK/OLS) whether the wider OBO world knows this term.
+        #    A real grounding to PR/CHEBI/GO/MONDO is vastly more useful than BFO:entity.
+        if self.grounder is not None:
+            grounded = self.grounder.ground(canonical)
+            if grounded and grounded.get("iri"):
+                self.manager.register_external_class(grounded["iri"], grounded.get("label"))
+                return {"iri": grounded["iri"], "method": "oak_grounded",
+                        "confidence": 0.8, "attempts": attempts,
+                        "grounded_curie": grounded.get("curie"),
+                        "grounded_ontology": grounded.get("prefix")}
+
+        # 6. Last resort: the most general class that is still TRUE of this entity.
         #
         # This used to try "information content entity" FIRST, for everything. That is
         # not a vague answer, it is a false one: p53 is a protein -- a material thing --
@@ -266,6 +283,7 @@ class EntityMapper:
             "class_specificity": {
                 "domain_exact": "exact",
                 "domain_head": "generalized",
+                "oak_grounded": "grounded",
                 "semantic_type_registry": "typed",
                 "semantic_type_exact": "typed",
                 "upper_ontology_fallback": "upper_ontology",

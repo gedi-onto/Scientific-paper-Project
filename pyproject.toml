@@ -27,6 +27,12 @@ ontology = [
 validation = [
     "jsonschema>=4.18",
 ]
+# OntoGPT/OAK-style entity grounding (graphrag_stage1.grounding). Resolves entity
+# mentions to real OBO term IDs (ChEBI, PRO, GO, MONDO, UBERON...) via oaklib,
+# without loading those ontologies into memory.
+grounding = [
+    "oaklib>=0.5",
+]
 # Ready-made provider clients (graphrag_stage1.clients).
 anthropic = [
     "anthropic>=0.40",
@@ -53,5 +59,5 @@ graphrag_stage1 = ["schemas/*.json"]
 # Tests live at the repo root and import the installed/importable package.
 testpaths = [
     "test_pipeline.py", "test_stage3.py", "test_schemas.py",
-    "test_throughput.py", "test_clients.py", "test_stage2_batching.py", "test_llm_client.py", "test_ontology_lookup.py", "test_entity_fallback.py",
+    "test_throughput.py", "test_clients.py", "test_stage2_batching.py", "test_llm_client.py", "test_ontology_lookup.py", "test_entity_fallback.py", "test_grounding.py",
 ]

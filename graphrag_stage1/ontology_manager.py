@@ -35,6 +35,11 @@ REQUIRED_UPPER_CLASSES = {
 OBO = Namespace("http://purl.obolibrary.org/obo/")
 OBOINOWL = Namespace("http://www.geneontology.org/formats/oboInOwl#")
 
+# Marks a class stub that was resolved by an external annotator (OAK/OLS) rather than
+# parsed from a loaded ontology file. Lets a consumer distinguish grounded references
+# from natively-loaded classes.
+EXTERNAL_GROUNDED_CLASS = URIRef("https://w3id.org/graphrag/vocab/ExternalGroundedClass")
+
 # Every predicate that attaches a *name* to a class. SKOS alone is not enough: OBO
 # Foundry ontologies (INO, GO, ChEBI, PRO...) publish their synonyms under oboInOwl
 # and IAO_0000118 ("alternative term"), so a SKOS-only index cannot see them --
@@ -485,6 +490,28 @@ class OntologyManager:
         if datatype_property and not object_property:
             return datatype_property
         return None
+
+    def register_external_class(self, iri: str, label: str | None = None) -> URIRef:
+        """Declare a class resolved from OUTSIDE the loaded ontologies (e.g. by OAK).
+
+        Grounding a mention to ``PR:000002198`` types an entity against a class that was
+        never parsed into this graph -- ChEBI, PRO, GO and friends are far too large to
+        hold in rdflib. ``create_instance`` rightly refuses to type an individual with an
+        undeclared class, so register a minimal stub (the class node, its label, and a
+        marker that it came from an external annotator) and index it. The real ontology
+        is not loaded; we are recording a grounded reference to it, with provenance.
+        """
+        node = URIRef(iri)
+        if (node, RDF.type, OWL.Class) not in self.graph:
+            self.graph.add((node, RDF.type, OWL.Class))
+            if label:
+                self.graph.add((node, RDFS.label, Literal(label)))
+            # Mark the provenance of the stub so a consumer can tell a grounded class
+            # from a natively-loaded one.
+            self.graph.add((node, RDF.type, EXTERNAL_GROUNDED_CLASS))
+            for text in (label, local_name(node)):
+                self._add_index(self.class_index, text, node)
+        return node
 
     def create_instance(self, ontology_class: URIRef, key: str, label: str) -> URIRef:
         if (ontology_class, RDF.type, OWL.Class) not in self.graph and (
