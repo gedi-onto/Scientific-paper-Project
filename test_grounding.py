@@ -3,7 +3,6 @@
 No network and no oaklib needed -- the OAK adapter is stubbed, so these run anywhere.
 """
 
-import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -54,6 +53,13 @@ class RankingTests(unittest.TestCase):
         g = grounder_with({}, {})
         self.assertIsNone(g.ground("we"))
         self.assertIsNone(g.ground(""))
+
+    def test_short_acronyms_are_not_grounded(self):
+        # PBS (a buffer) exact-matches "breast sarcoma" in MONDO; HT29, RNA, PCR collide
+        # similarly. Below the length guard, they are never even looked up.
+        g = grounder_with({"pbs": ["MONDO:0002490"]}, {"MONDO:0002490": "breast sarcoma"})
+        self.assertIsNone(g.ground("PBS"))
+        self.assertEqual(g._adapter.calls, 0, "short mentions must not reach the adapter")
 
 
 class CacheTests(unittest.TestCase):

@@ -25,6 +25,12 @@ from typing import Optional
 
 # Ontology prefixes worth grounding to, roughly best-first. A term found in several
 # ontologies is reported from the most specific appropriate source.
+#
+# NCIT is deliberately absent. It is a broad thesaurus that has an exact label or
+# synonym for almost any word, so it grounds generic terms (study, database, culture,
+# migration) and lab shorthand to unrelated concepts far more often than it helps -- on
+# a real paper it produced 11 groundings, nearly all noise. The OBO ontologies below are
+# scoped to what they cover, so a hit is far more likely to be right.
 DEFAULT_PREFERRED_PREFIXES = (
     "PR",        # Protein Ontology
     "CHEBI",     # chemicals / drugs
@@ -35,8 +41,13 @@ DEFAULT_PREFERRED_PREFIXES = (
     "CL",        # cell types
     "NCBITaxon", # organisms
     "PW",        # pathways
-    "NCIT",      # broad biomedical thesaurus (good protein/drug fallback)
 )
+
+# Below this length a mention is almost always a lab acronym (PBS, RNA, HT29, PCR) that
+# collides with an unrelated exact label, so it is not grounded. Real gene/protein
+# symbols the annotator can place (EGFR, COX2) are handled by the loaded-ontology and
+# species-aware paths, not by blind acronym matching.
+MIN_GROUNDING_LENGTH = 4
 
 
 def _normalise(text: str) -> str:
@@ -137,7 +148,7 @@ class OakGrounder:
     def ground(self, mention: str) -> Optional[GroundingResult]:
         """Resolve one mention to a term, or ``None``. Cached across the process and disk."""
         key = _normalise(mention)
-        if not key:
+        if not key or len(key) < MIN_GROUNDING_LENGTH:
             return None
         if key in self._cache:
             cached = self._cache[key]
