@@ -21,7 +21,7 @@ Re-exports are lazy (PEP 562): importing this package pulls in nothing heavy;
 ``rdflib`` is only imported when you first touch a Stage 3 symbol.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # name -> submodule providing it. Resolved lazily on first attribute access so
 # that `import graphrag_stage1` never imports rdflib/pyshacl (Stage 3 only).

@@ -93,8 +93,26 @@ class OllamaClient:
     # Ollama defaults to a 4096-token context. A single Stage 2 frame fits (~2.2k
     # prompt + ~0.8k output), but a BATCHED Stage 2 call does not -- N frames need
     # roughly N x 800 output tokens, and anything past the window is silently
-    # truncated into invalid JSON. Set this when batching.
-    num_ctx: int | None = None
+    # truncated into invalid JSON.
+    #
+    # 6144 is sized for the default STAGE2_BATCH_SIZE of 5 and, critically, for the
+    # VRAM this leaves for the KV cache. These defaults are coupled in BOTH directions:
+    #
+    #   too small -> a batch of 5 truncates into invalid JSON, falls back to the
+    #                per-statement path, and is slower than not batching at all;
+    #   too large -> Ollama allocates num_ctx PER PARALLEL SLOT. With the common
+    #                OLLAMA_NUM_PARALLEL=4, num_ctx=8192 reserves 32k of KV cache,
+    #                which thrashes VRAM alongside a 7.4GB model on a 16GB card.
+    #
+    # Measured on 4 real paragraphs (qwen3:8b, RTX 5080 16GB, OLLAMA_NUM_PARALLEL=4),
+    # batch 5, changing only this value:
+    #
+    #   num_ctx 8192   1026s, 1 paragraph failed outright  (thrashing)
+    #   num_ctx 6144    101s, 0 failures                   (fits)
+    #
+    # A 10x difference from one number. If you raise this, lower OLLAMA_NUM_PARALLEL
+    # to match your VRAM, or the batch you were trying to make room for will thrash.
+    num_ctx: int | None = 6144
     # Hosted backends (Ollama Cloud, any metered endpoint) answer 429 when throttled.
     # These control how patiently we wait it out; they are separate from `retries`,
     # which exists for transport errors.

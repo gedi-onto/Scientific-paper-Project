@@ -2,7 +2,7 @@
 """Run the FULL pipeline (Stage 1 -> 2 -> 3) and print the Neptune N-Quads.
 
     python export_graph.py                 # built-in sample
-    python export_graph.py my_paper.txt    # your own text file
+    python export_graph.py your_paper.txt  # your own text file
 
 It prints the N-Quads (the exact RDF that goes into Neptune) to the screen and
 also writes them to  graph_output.nq  (upload that to S3 -> Neptune bulk loader).

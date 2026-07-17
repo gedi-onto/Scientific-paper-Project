@@ -25,8 +25,21 @@ exports/
 # regenerable. Kept on disk (they are the deliverable) but never committed.
 examples/*_output/
 
-# Personal scratch inputs
+# Large domain ontologies are fetched, not committed. The foundational stack ships
+# inside the package (graphrag_stage1/ontologies/, ~3.7 MB); a DOMAIN ontology is the
+# user's own and can dwarf it -- uberon-basic.owl alone is 48 MB, which is 8x the
+# entire rest of this repo and would live in git history forever. ino_merged.owl
+# (482 KB) stays tracked as a runnable example; anything this size does not.
+ontologies/Domain/uberon-basic.owl
+ontologies/Domain/*-basic.owl
+ontologies/Domain/*-full.owl
+
+# Personal scratch inputs -- your own papers dropped in the repo root to try things
+# out. Tracked sample text lives in examples/ instead.
 my_paper.txt
+your_paper.txt
+/*.txt
+!requirements.txt
 
 # Editor / OS
 .vscode/

@@ -136,8 +136,19 @@ pip install "graphrag-stage1[ontology,validation,anthropic]"   # combine extras
 ```
 
 Requires **Python 3.10+**. Importing the package pulls in nothing heavy — `rdflib`
-loads only when you touch Stage 3. (Not published to PyPI yet; on AWS you install
-it into your container image with `pip install .`.)
+loads only when you touch Stage 3.
+
+Install straight from source control:
+
+```bash
+pip install "graphrag-stage1[ontology] @ git+https://github.com/<you>/<repo>"
+```
+
+The **foundational ontologies (IAO, CCO, RO, alignment + SHACL shapes) ship inside the
+wheel**, so `[ontology]` gives you a working Stage 3 with nothing else to download. You
+supply only your **domain** ontology via `domain_ontology=` — see [§10](#10-ontologies).
+(Not published to PyPI yet; on AWS you install it into your container image with
+`pip install .`.)
 
 ---
 
@@ -174,11 +185,12 @@ That is the whole thing. Everything below explains the pieces.
 | **Stage 3** — ontology mapping | `stage3_pipeline` | **No** (deterministic) | RDF assertions + JSON-LD |
 | **Stage 3 export** — Neptune | `export_neptune_nquads` | No | SHACL-validated N-Quads file |
 
-- **Stage 1 internally** makes ~3 LLM calls per paragraph: decompose → recall-check
-  → batch-classify. Deterministic "cue" rules (negation, numbers, "shall", hedges)
+- **Stage 1 internally** makes ~2–3 LLM calls per paragraph: decompose →
+  batch-classify, plus a recall-check *only when the deterministic recall floor says a
+  clause went missing*. Deterministic "cue" rules (negation, numbers, "shall", hedges)
   pre-fill or override facets.
-- **Stage 2** makes ~1 call per fact (with an optional bounded retry that can
-  escalate to a stronger model).
+- **Stage 2** makes ~1 call per **batch of 5** facts (`STAGE2_BATCH_SIZE`, on by
+  default), with an optional bounded retry that can escalate to a stronger model.
 - **Stage 3** makes **no** LLM calls — it is pure ontology lookup + RDF minting.
 - **Export** runs a SHACL gate: conforming triples are written; non-conforming ones
   are quarantined to a separate file (never uploaded).
@@ -351,14 +363,14 @@ Each row is a copy-paste recipe. `client` is any `LLMClient` (see §9).
 | **Just the fact labels** | `[s["facets"] for s in stage1["statements"]]` | `list[dict]` |
 | **Just relationships** | `stage1["relations"]` | `list` of discourse edges |
 | **Schema-validate an output** | `validate(stage1)` / `validate(stage2)` | returns it, or raises `SchemaValidationError` |
-| **Load ontologies** | `OntologyManager("ontologies/").load_all(domain_ontology="d.owl")` | an `OntologyManager` |
+| **Load ontologies** | `OntologyManager().load_all(domain_ontology="d.owl")` | an `OntologyManager` (core ships in the wheel) |
 
 **Full manual chain (all outputs explicitly):**
 ```python
 from graphrag_stage1 import process_paragraph, stage2_pipeline, stage3_pipeline, OntologyManager
 from graphrag_stage1.stage3_neptune_export import export_neptune_nquads
 
-mgr    = OntologyManager("ontologies/").load_all(domain_ontology="my_domain.owl")
+mgr    = OntologyManager().load_all(domain_ontology="my_domain.owl")
 s1     = process_paragraph(text, paragraph_id="p1", client=client)   # Stage 1
 s2     = stage2_pipeline(s1, client=client)                          # Stage 2
 s3     = stage3_pipeline(s2, mgr)                                    # Stage 3
@@ -377,11 +389,32 @@ Everything importable from `graphrag_stage1`:
 ### Orchestration
 ```python
 analyze_paper(text, *, client, stage2_client=None, max_concurrency=8,
-              stage2_concurrency=4, ontology=None, domain_ontology=None,
-              ontology_root="ontologies", on_result=None) -> list[dict]
+              stage2_concurrency=4, stage2_batch_size=None, ontology=None,
+              domain_ontology=None, ontology_root=None, grounder=None,
+              gate_noise=True, on_result=None) -> list[dict]
 ```
 Split raw text into paragraphs and run them in parallel. Pass `domain_ontology`
 (a path) or `ontology` (a prebuilt `OntologyManager`) to also run Stage 3.
+
+> ⚠️ **Pass a `grounder` or Stage 3 will type almost nothing.** Without one, an entity
+> that is not already a class in the loaded ontology can only be generalised to a *true*
+> ancestor — which in practice means `BFO:entity`, the root of the ontology. Measured on
+> the 4 most interaction-dense paragraphs of a PMC paper against INO:
+>
+> | | domain-typed entities |
+> |---|---|
+> | no grounder | **0 / 10** (every entity → `BFO:entity`) |
+> | `OakGrounder()` | **7 / 21 (33%)** — real `CHEBI`, `GO`, `MONDO`, `PR`, `PW` classes |
+>
+>
+> ```python
+> from graphrag_stage1.grounding import OakGrounder
+> analyze_paper(text, client=c, domain_ontology="ontologies/Domain/ino_merged.owl",
+>               grounder=OakGrounder(cache_path=".grounding_cache.json"))
+> ```
+> The grounder resolves mentions to real term IDs **lexically** (never by asking a model
+> to recall a CURIE — models hallucinate ontology IDs, a lexical match does not), and
+> caches to disk, so the network is hit once per distinct mention across all runs.
 
 `stage2_client` runs Stage 2 on a **separate model**. Both clients share one global
 `max_concurrency` ceiling, so the cap still means what it says.
@@ -405,17 +438,22 @@ at a different provider (e.g. a hosted endpoint for Stage 2 while Stage 1 stays 
 
 ```python
 run_paper(paragraphs, *, client, stage2_client=None, max_concurrency=8,
-          stage2_concurrency=4, ontology=None, on_result=None) -> list[dict]
+          stage2_concurrency=4, stage2_batch_size=None, ontology=None,
+          grounder=None, gate_noise=True, on_result=None) -> list[dict]
 ```
 Same, but you supply the paragraph list. `on_result(index, result)` fires as each
 finishes (for streaming/checkpointing). Order preserved; failures become
-`{"paragraph_id", "error", "error_type"}`.
+`{"paragraph_id", "error", "error_type"}`. Paragraphs dropped by the L1 gate return
+`{"paragraph_id", "gated": True, "gate_reason"}` with empty stages — they never reach
+a model.
 
 ```python
-run_pipeline(paragraph, *, client=None, paragraph_id="p1",
-             source_metadata=None, ontology=None, stage2_concurrency=None) -> dict
+run_pipeline(paragraph, *, client=None, stage2_client=None, paragraph_id="p1",
+             source_metadata=None, ontology=None, grounder=None,
+             stage2_concurrency=None, stage2_batch_size=None) -> dict
 ```
-One paragraph → `{"stage1", "stage2", ["stage3"]}`.
+One paragraph → `{"stage1", "stage2", ["stage3"]}`. Note `run_pipeline` has **no**
+`gate_noise`: L1 gating is a document-level decision and lives in `run_paper`.
 
 ```python
 split_paragraphs(text) -> list[dict]     # split on blank lines into {"text": ...}
@@ -434,7 +472,7 @@ If `client=None`, a default local `OllamaClient` is built from env vars.
 from graphrag_stage1.stage3_neptune_export import export_neptune_nquads
 export_neptune_nquads(stage3_output, destination,
                       quarantine_destination=None, report_destination=None,
-                      shapes_path="ontologies/Alignment/stage3-publication-shapes.ttl") -> dict
+                      shapes_path=DEFAULT_SHAPES) -> dict   # packaged SHACL shapes
 ```
 
 ### Validation
@@ -456,7 +494,7 @@ BoundedClient(inner_client, max_concurrency)   # global concurrency cap
 
 ### Ontology & config
 ```python
-OntologyManager(ontology_root="ontologies", instance_namespace="urn:graphrag:instance:")
+OntologyManager(ontology_root=None, instance_namespace="urn:graphrag:instance:")  # None -> packaged core
     .load_all(domain_ontology=None) -> OntologyManager
 PipelineConfig                          # max_paragraph_chars, queue_db, audit_log
 __version__                             # "0.1.0"
@@ -492,28 +530,40 @@ class MyClient:
 
 ## 10. Ontologies
 
-Stage 3 loads a **fixed core** plus **one replaceable domain slot**:
+Stage 3 loads a **fixed core** — which **ships inside the wheel** — plus **one replaceable
+domain slot**, which you supply:
 
 ```
-ontologies/
-├── bfo.owl                          CORE (required)  — Basic Formal Ontology
-├── iao.owl                          CORE (required)  — Information Artifact Ontology
-├── CommonCoreOntologies*.ttl        CORE (required)  — CCO
-├── Relations/ro.owl                 optional         — Relation Ontology
-├── Alignment/                       the bridge from pipeline vocab → the ontologies
-│   ├── stage2-alignment-v1.0.ttl
-│   └── stage3-publication-shapes.ttl   (SHACL rules for the Neptune gate)
-└── Domain/<your_ontology>.owl       ← REPLACE THIS with your subject's ontology
+graphrag_stage1/ontologies/          ← PACKAGED: installed with the library, nothing to fetch
+├── iao.owl                          CORE — Information Artifact Ontology
+├── CommonCoreOntologiesMerged.ttl   CORE — CCO (also supplies BFO's classes)
+├── Relations/ro.owl                 optional — Relation Ontology
+└── Alignment/                       the bridge from pipeline vocab → the ontologies
+    ├── stage2-alignment-v1.0.ttl
+    └── stage3-publication-shapes.ttl   (SHACL rules for the Neptune gate)
+
+<anywhere>/my_domain.owl             ← YOURS: passed via domain_ontology=
 ```
 
-**Two ways to supply your domain ontology:**
+**BFO ships no file of its own.** CCO and IAO are both built on it and republish its classes
+under the canonical `obo/BFO_*` IRIs, so BFO arrives with them. A separate (stale) BFO file is
+actively harmful: legacy IFOMIS BFO 1.1 names the same concepts under *different* IRIs, making
+every upper-ontology term ambiguous. `missing_upper_classes()` verifies the classes are present
+rather than trusting a filename.
+
+**Supply your domain ontology:**
 ```python
-# 1. drop your file into ontologies/Domain/ (no code)
-OntologyManager("ontologies/").load_all()
+# The core comes from the installed package -- name only your domain file (or a directory):
+OntologyManager().load_all(domain_ontology="/path/to/my_domain.owl")
 
-# 2. point at it explicitly (a file or a directory)
-OntologyManager("ontologies/").load_all(domain_ontology="/path/to/my_domain.owl")
+# Override the core location only if you need a pinned / patched copy:
+OntologyManager(ontology_root="/path/to/ontologies").load_all(domain_ontology="my_domain.owl")
 ```
+
+> The domain ontology is deliberately **not** bundled: it is the one module that changes per
+> scientific domain, it is your choice, and it can dwarf the core — the whole foundational
+> stack is ~3.7 MB, while UBERON alone is 48 MB. The repo keeps examples under the top-level
+> `ontologies/Domain/`; those are samples, not part of the library.
 
 - Core ontologies and your domain ontology are **never modified** — the Alignment
   layer does the bridging.
@@ -539,10 +589,12 @@ Wall-clock ≈ **(total LLM calls × per-call latency) ÷ max_concurrency**.
 
 ### Where the time actually goes
 
-Per paragraph: Stage 1 makes **3** calls (decompose, recall, batched classify);
-Stage 2 makes **one per statement** (~6) plus any reprocess retries. But call count
-is not the whole story — **Stage 2 is decode-bound**. Measured on one paragraph
-(qwen3, RTX 5080 laptop):
+Per paragraph: Stage 1 makes **2–3** calls (decompose, batched classify, and the
+recall pass *only when the deterministic floor is short* — see below); Stage 2 makes
+**one per batch of 5 statements** (~2) plus any reprocess retries. A 6-statement
+paragraph therefore costs ~5 calls, not the ~9 it cost before batching became the
+default. But call count is not the whole story — **Stage 2 is decode-bound**. Measured
+on one paragraph (qwen3, RTX 5080 laptop):
 
 | | prompt | prefill | output | decode | decode share |
 |---|---|---|---|---|---|
@@ -565,18 +617,43 @@ a *speed* feature here, not just a quality one.
 ### Local GPU vs hosted
 
 - **Hosted API** (Claude/OpenAI/Bedrock), `max_concurrency=16`: **~1 minute** for a
-  ~50-paragraph paper. Concurrency works because the endpoint scales.
+  ~50-paragraph paper. Concurrency works because the endpoint scales — *provided your
+  quota actually allows 16 concurrent requests*. Concurrency you are not entitled to
+  is not speed; see "Concurrency is bounded by quota, not ambition" below.
 - **Single local GPU**: raising `max_concurrency` past a few does **not** help — the
   GPU saturates (97–98% utilisation) and extra concurrent requests just time-slice
-  the same silicon. Expect **tens of minutes**. Set `OLLAMA_NUM_PARALLEL` and
-  `OLLAMA_MAX_LOADED_MODELS=2` (so an 8B Stage 1 and 4B Stage 2 stay resident
-  together rather than swapping), then reduce generated tokens.
+  the same silicon. Set `OLLAMA_NUM_PARALLEL` and `OLLAMA_MAX_LOADED_MODELS=2` (so an
+  8B Stage 1 and 4B Stage 2 stay resident together rather than swapping), then reduce
+  generated tokens.
 
-### Batched Stage 2 — the single biggest lever (`stage2_batch_size`)
+**Measured, on the defaults this guide now ships** (qwen3:8b, RTX 5080 laptop 16 GB,
+4 real 70–75-word paragraphs from a PMC paper, batching on, `num_ctx=6144`):
 
-Stage 2 normally makes **one call per statement**. Batching frames several statements
-in one call, and it is faster *and* more accurate. Measured on 43 identical statements
-(`qwen3:8b`), varying only the batch size:
+| Configuration | Wall | Per paragraph | Errors |
+|---|---|---|---|
+| **Local qwen3:8b, `max_concurrency=4`** | **101 s** | **25 s** | 0 |
+| Ollama Cloud `gpt-oss:120b-cloud`, `max_concurrency=4` | 220 s | 55 s | 0 |
+| Ollama Cloud `gpt-oss:120b-cloud`, `max_concurrency=12` | 769 s | 154 s | **7 of 12 lost** |
+
+An 80-paragraph paper is therefore **~33 minutes locally** — the "tens of minutes"
+this guide has always claimed, but only once batching is on and `num_ctx` is sized.
+With the pre-0.2 defaults (batching off, Ollama's 4096 window) the same paper took
+**~8 hours**: the shipped defaults, not the pipeline, were the bottleneck.
+
+**A bigger model is not a faster one.** `gpt-oss:120b-cloud` is 2.2× *slower* per
+paragraph than a local 8B on a dedicated GPU, and reasoning models
+(`nemotron-3-super:cloud`) are slower still because they spend tokens thinking before
+answering. What a bigger model buys is a better graph — in the run above it produced
+7 fully-`mapped` frames against local's 3, and was the only model to reach a real
+domain class rather than falling back to `BFO:entity`. Choose cloud for *quality*;
+choose parallel capacity for *speed*. They are different purchases.
+
+### Batched Stage 2 — on by default since 0.2 (`stage2_batch_size`)
+
+Unbatched, Stage 2 makes **one call per statement**. Batching frames several statements
+in one call, and it is faster *and* more accurate — so since 0.2 it is the **default**
+(`STAGE2_BATCH_SIZE=5`). Set `STAGE2_BATCH_SIZE=0` to restore the per-statement path.
+Measured on 43 identical statements (`qwen3:8b`), varying only the batch size:
 
 | Stage 2 | Time | Frames accepted | Grounding errors |
 |---|---|---|---|
@@ -594,10 +671,66 @@ and every retry was a second full call.
 analyze_paper(text, client=c, stage2_batch_size=5)
 ```
 
-**Do not go past ~10.** A batch of N needs roughly N × 800 output tokens, and on
-Ollama that means raising the context window (`OllamaClient(num_ctx=...)`, default
-4096) or the batch silently truncates. At batch 20 the 32K context thrashes VRAM on a
-16 GB card and the run gets *slower*.
+**Do not go past ~10.** A batch of N needs roughly N × 800 output tokens, so the
+context window must be sized for it or the batch silently truncates into invalid JSON.
+At batch 20 the 32K context thrashes VRAM on a 16 GB card and the run gets *slower*.
+
+### ⚠️ `num_ctx` × `OLLAMA_NUM_PARALLEL` — the sharpest edge in the whole pipeline
+
+`OllamaClient(num_ctx=...)` defaults to **6144** since 0.2, sized for a batch of 5
+(~2.2k prompt + 5 × 800 output). It is coupled to batching in *both* directions, and
+getting it wrong is expensive in opposite ways:
+
+- **too small** → every batch truncates, falls back to the per-statement path, and the
+  run is *slower than not batching at all*;
+- **too large** → Ollama allocates `num_ctx` **per parallel slot**. With a common
+  `OLLAMA_NUM_PARALLEL=4`, `num_ctx=8192` reserves **32K** of KV cache, which thrashes
+  VRAM alongside a 7.4 GB model on a 16 GB card.
+
+Measured on 4 real paragraphs (qwen3:8b, RTX 5080 16 GB, `OLLAMA_NUM_PARALLEL=4`,
+batch 5, changing **only** this one value):
+
+| `num_ctx` | Wall | Outcome |
+|---|---|---|
+| 8192 | **1026 s** | 1 paragraph failed outright (thrashing) |
+| **6144** | **101 s** | 0 failures |
+
+**A 10× swing from one number.** If you raise `num_ctx`, lower `OLLAMA_NUM_PARALLEL`
+to match your VRAM — otherwise the headroom you were buying for a bigger batch is
+exactly what thrashes.
+
+### Concurrency is bounded by quota, not ambition
+
+`max_concurrency` is a *budget*, not a throttle to open as far as it goes. Set it **to**
+your provider's safe concurrent-request allowance. Measured on Ollama Cloud
+(`gpt-oss:120b-cloud`, free tier): `max_concurrency=4` completes cleanly;
+`max_concurrency=12` returns HTTP 429 on **7 of 12 paragraphs**, and each one burns the
+full 429 backoff before failing — so the run is both **3× slower per surviving
+paragraph and loses more than half the paper**. Past your quota you do not buy speed;
+you buy waiting and data loss. `BoundedClient` exists to hold this budget across
+arbitrary fan-out — give it the right number.
+
+### The recall pass is now conditional (`STAGE1_ALWAYS_RECALL`)
+
+The L7 recall pass costs one LLM call per paragraph. Since 0.2 it runs **only when the
+deterministic recall floor is short** — i.e. when the symbolic layer has positive
+evidence that decomposition dropped a clause. A decomposition that already met its
+floor has no known gap, and on the gold suite skipping the call changed **nothing**
+(13/13 artifact recall, 8/8 unit-count, identical consistency flags). Set
+`STAGE1_ALWAYS_RECALL=1` to force it on every paragraph if you want maximum recall over
+latency.
+
+### L1 boilerplate gating (`gate_noise`)
+
+`run_paper`/`analyze_paper` drop journal front/back matter — `Keywords:` lines,
+supplementary-material DOIs, publisher notices — **before** they cost a model call
+(`gate_noise=True`, the default). The gate is deliberately narrow: on a real 63-paragraph
+PMC paper it fires on **3** paragraphs (~5%). It does *not* use length or punctuation
+heuristics, because the shortest paragraphs in a real paper are figure captions ("A Venn
+diagram illustrating the overlap between…") and methods lines ("GAPDH was used as an
+internal control") — both content. A dropped paragraph is unrecoverable downstream, so
+everything ambiguous is left to Stage 1's `role` facet. Pass `gate_noise=False` to
+disable.
 
 Safety: a batch that returns the wrong number of frames, or raises, falls back to the
 proven per-statement path — no facts are dropped. Frames are re-aligned to their
@@ -665,7 +798,8 @@ Read when a **default** client/config is used (you can always pass explicit obje
 | `STAGE2_STRONGER_MODEL` | = `STAGE2_MODEL` | Model used on the `stronger` retry |
 | `STAGE2_MAX_RETRIES` | `1` | Bounded automated reprocessing attempts |
 | `STAGE2_CONCURRENCY` | `2` | Default statement fan-out |
-| `STAGE2_BATCH_SIZE` | `0` | Frame N statements per model call. 5 is the sweet spot; do not exceed ~10 (see §11) |
+| `STAGE2_BATCH_SIZE` | `5` | Frame N statements per model call. **On by default since 0.2** — faster *and* more accurate. `0` restores the per-statement path; do not exceed ~10 (see §11) |
+| `STAGE1_ALWAYS_RECALL` | unset | Run the L7 recall pass on every paragraph instead of only when the deterministic floor is short. Costs ~1 extra call per paragraph (see §11) |
 | `OLLAMA_URL` | `http://localhost:11434/api/generate` | Ollama endpoint |
 | `OLLAMA_TIMEOUT` | `180` | Per-call timeout (s) |
 | `OLLAMA_RETRIES` | `2` | Transport retries |

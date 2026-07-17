@@ -138,6 +138,50 @@ client = OllamaClient(model="qwen3:8b")
   ideal for production-quality graphs.
 - You run and maintain the local server/hardware.
 
+> **Measured (0.2 defaults):** ~25 s per real 70-word paragraph on an RTX 5080 laptop
+> (qwen3:8b, batching on, `num_ctx=6144`, `max_concurrency=4`) — an 80-paragraph paper
+> in **~33 minutes**. With the pre-0.2 defaults (batching off, Ollama's 4096 window)
+> the same paper took **~8 hours**. If local feels impossibly slow, check those two
+> settings before blaming the hardware — and see the `num_ctx` × `OLLAMA_NUM_PARALLEL`
+> warning in DOCUMENTATION.md §11, which is worth 10× on its own.
+
+---
+
+## Ollama Cloud *(built-in — same `OllamaClient`)*
+
+```python
+from graphrag_stage1 import OllamaClient
+client = OllamaClient(model="gpt-oss:120b-cloud")   # ollama signin, then any :cloud tag
+```
+
+Any model tag ending `-cloud` / `:cloud` is served remotely. `OllamaClient` detects
+this (`schema_is_enforced`) and restates the JSON schema in the prompt, because Ollama
+Cloud treats `format` as a *hint*, not a decoding grammar — unlike local Ollama, which
+compiles it into one. Do **not** pass `num_ctx`: it is a local KV-cache knob and means
+nothing remotely.
+
+**Pros**
+
+- Frontier-scale models with no local VRAM (`gpt-oss:120b-cloud`,
+  `nemotron-3-super:cloud`, `nemotron-3-ultra:cloud`).
+- **Better graphs.** Measured on 4 interaction-dense PMC paragraphs, `gpt-oss:120b-cloud`
+  produced **7 fully-`mapped` frames vs local qwen3:8b's 3**, and was the only model to
+  reach real domain classes rather than `BFO:entity` fallbacks.
+
+**Cons**
+
+- **Not faster — slower.** 55 s/paragraph vs local 25 s. A bigger model costs more
+  decode time per call; reasoning models (`nemotron-*`) cost more still, since they
+  emit thinking tokens before answering.
+- **Quota-bound.** Free tier throttles hard: `max_concurrency=4` completes cleanly,
+  `max_concurrency=12` returned HTTP 429 on **7 of 12 paragraphs** and ran 3× slower per
+  survivor. Set `max_concurrency` **to** your allowance, not higher.
+- Model tags churn — `qwen3-coder:480b-cloud`, benchmarked in earlier releases, no
+  longer exists. Probe availability before pinning one.
+
+> **Choose cloud for quality, not speed.** Parallel capacity is what buys throughput,
+> and on a free tier you do not have much of it. If you need both, self-host vLLM.
+
 ---
 
 ## Self-hosted large models — vLLM / TGI *(built-in via `sdk=`)*
@@ -174,6 +218,8 @@ client = OpenAIClient(model="Qwen/Qwen2.5-72B-Instruct",
 | Microsoft / enterprise compliance shop | **Azure OpenAI** | OpenAI models, your tenant |
 | **Very long** documents | **Gemini** or **Claude** | Long context windows |
 | Prototyping on a laptop | **Local Ollama** | No keys, no cost |
+| Bulk-running a corpus on one workstation | **Local Ollama** (batching on) | ~25 s/paragraph, no metering, no 429s — faster than a free-tier cloud model |
+| Best graph quality, volume not critical | **Ollama Cloud** `gpt-oss:120b-cloud` | 2× more frames fully mapped; 2× slower per paragraph |
 
 ### Practical guidance
 - **Quality matters for this task.** Faceted scientific extraction + structured
@@ -182,8 +228,14 @@ client = OpenAIClient(model="Qwen/Qwen2.5-72B-Instruct",
 - **Use the `stronger` tier.** All clients here escalate hard cases to a bigger model
   automatically (Stage 2's `REPROCESS_WITH_STRONGER_MODEL`). Keep a fast default and a
   strong fallback.
-- **Speed is about the endpoint, not the code.** Hosted/scalable endpoints hit
-  ~1 min/paper; a single local GPU can't (see the user guide, "Make it fast").
+- **Speed is about the endpoint *and* the settings.** Hosted/scalable endpoints hit
+  ~1 min/paper; a single local GPU can't (see the user guide, "Make it fast"). But check
+  the settings first: with batching off and a 4096 window, a local paper took ~8 hours;
+  with the 0.2 defaults it takes ~33 minutes. That is a bigger factor than the endpoint.
+- **A bigger model is not a faster one.** It buys graph quality, and costs decode time.
+  Speed comes from *parallel capacity* — which is a property of your quota or your
+  hardware, not of the model. Set `max_concurrency` to what you're actually entitled to;
+  past that you buy 429 backoff and lost paragraphs, not throughput.
 - **Mind data governance.** If papers can't leave your environment, use **Bedrock**,
   **Ollama**, or **self-hosted vLLM** — not the public APIs.
 

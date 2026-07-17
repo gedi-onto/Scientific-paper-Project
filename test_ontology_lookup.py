@@ -122,12 +122,14 @@ class RealOntologyStackTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         from pathlib import Path
-        root = Path(__file__).resolve().parent / "ontologies"
-        if not root.exists():  # pragma: no cover - ontologies are optional in a wheel
-            raise unittest.SkipTest("ontologies/ not present")
-        cls.manager = OntologyManager(str(root)).load_all(
-            domain_ontology=str(root / "Domain" / "ino_merged.owl")
-        )
+        # The foundational stack now ships inside the package, so the default
+        # OntologyManager() root is the packaged copy -- exercise exactly what an
+        # installed user gets. Only the domain ontology comes from the repo, because
+        # that one is deliberately not bundled.
+        domain = Path(__file__).resolve().parent / "ontologies" / "Domain" / "ino_merged.owl"
+        if not domain.exists():  # pragma: no cover - example domain file is repo-only
+            raise unittest.SkipTest("example domain ontology not present")
+        cls.manager = OntologyManager().load_all(domain_ontology=str(domain))
 
     def test_bfo_classes_are_present_without_a_bfo_file(self):
         # BFO ships no file of its own: CCO and IAO are built on it and republish its

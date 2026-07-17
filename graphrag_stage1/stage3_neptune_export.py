@@ -11,7 +11,10 @@ from rdflib import Dataset, Graph, URIRef
 from rdflib.namespace import RDF, SH
 
 
-DEFAULT_SHAPES = Path("ontologies/Alignment/stage3-publication-shapes.ttl")
+# Resolved from the package, not the working directory: the shapes ship inside the wheel,
+# and a CWD-relative default silently works in the repo while failing for every installed
+# user (who has no ./ontologies to find).
+DEFAULT_SHAPES = Path(__file__).resolve().parent / "ontologies" / "Alignment" / "stage3-publication-shapes.ttl"
 
 
 def _data_graph(stage3_output: dict) -> Graph:

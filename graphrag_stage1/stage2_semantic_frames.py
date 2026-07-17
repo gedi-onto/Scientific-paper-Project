@@ -13,7 +13,15 @@ STAGE2_CONCURRENCY = max(1, int(os.getenv("STAGE2_CONCURRENCY", "2")))
 # Batch N statements into one model call instead of one call each. 0/1 disables.
 # Needs a context window big enough for N frames of output (~800 tokens each) --
 # on Ollama, set OllamaClient(num_ctx=...) accordingly or the batch silently truncates.
-STAGE2_BATCH_SIZE = int(os.getenv("STAGE2_BATCH_SIZE", "0"))
+#
+# Default 5: measured on 43 statements (qwen3:8b) batching is both faster and *more*
+# accurate than the per-statement path -- 228.0s/58% unbatched vs 130.5s/72% at 5 --
+# because showing the model sibling statements improves grounding, which collapses the
+# REPROCESS retries that each cost a second full call. Do not raise past ~10: at 20 the
+# 32k context needed thrashes VRAM on a 16GB card (433.9s). A batch that returns the
+# wrong frame count or raises falls back to the per-statement path, so this cannot drop
+# facts.
+STAGE2_BATCH_SIZE = int(os.getenv("STAGE2_BATCH_SIZE", "5"))
 
 
 def default_client() -> LLMClient:

@@ -13,6 +13,19 @@ from rdflib.namespace import OWL, XSD
 
 
 ONTOLOGY_SUFFIXES = {".owl", ".rdf", ".ttl", ".nt", ".n3", ".jsonld"}
+# The foundational ontologies (IAO, CCO, RO, and the pipeline alignment) ship *inside*
+# the package, so `pip install graphrag-stage1[ontology]` gives you a working Stage 3
+# with nothing else to fetch. They are small (~3.7 MB), stable, and the same for every
+# user -- there is no reason to make anyone hunt for them.
+#
+# The DOMAIN ontology is deliberately NOT shipped: it is the one module that changes per
+# scientific domain, it is the user's choice, and it can be enormous (UBERON alone is
+# 48 MB). Pass it explicitly via `domain_ontology=`.
+#
+# This path is resolved from the package file, never from the working directory. A
+# CWD-relative default silently works in the repo and fails for every installed user.
+PACKAGED_ONTOLOGY_ROOT = Path(__file__).resolve().parent / "ontologies"
+
 CORE_ONTOLOGIES = ("BFO", "IAO", "CCO")
 
 # BFO needs no file of its own: CCO and IAO are both built on it and republish its
@@ -79,10 +92,10 @@ class OntologyManager:
 
     def __init__(
         self,
-        ontology_root: str | Path = "ontologies",
+        ontology_root: str | Path | None = None,
         instance_namespace: str = "urn:graphrag:instance:",
     ) -> None:
-        self.ontology_root = Path(ontology_root)
+        self.ontology_root = Path(ontology_root) if ontology_root is not None else PACKAGED_ONTOLOGY_ROOT
         self.graph = Graph()
         self.instance_namespace = Namespace(instance_namespace)
         self.loaded_files: list[str] = []

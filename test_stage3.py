@@ -9,7 +9,7 @@ from graphrag_stage1.ontology_manager import OntologyManager
 from graphrag_stage1.canonicalizer import Canonicalizer
 from graphrag_stage1.semantic_typer import SemanticTyper
 from graphrag_stage1.stage3_ontology_mapper import stage3_pipeline
-from graphrag_stage1.stage3_neptune_export import export_neptune_nquads
+from graphrag_stage1.stage3_neptune_export import DEFAULT_SHAPES, export_neptune_nquads
 from graphrag_stage1.stage2_semantic_frames import postprocess_frame
 
 
@@ -279,7 +279,10 @@ class Stage3MapperTests(unittest.TestCase):
             destination,
             quarantine_destination=quarantine,
             report_destination=report,
-            shapes_path=Path("ontologies/Alignment/stage3-publication-shapes.ttl"),
+            # The shapes ship inside the package; resolve them from there rather than
+            # from a CWD-relative path, which only ever worked when pytest happened to
+            # run from the repo root.
+            shapes_path=DEFAULT_SHAPES,
         )
         self.assertTrue(destination.exists())
         self.assertIn("urn:graphrag:graph:", destination.read_text(encoding="utf-8"))

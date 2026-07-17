@@ -2,7 +2,7 @@
 """Manual smoke test for graphrag_stage1 — run it directly, no install needed.
 
     python try_it.py                 # analyze the built-in sample paragraph
-    python try_it.py my_paper.txt    # analyze your own plain-text file
+    python try_it.py your_paper.txt  # analyze your own plain-text file
     python try_it.py --check         # fast setup check (imports + Ollama reachable)
 
 By default it uses your LOCAL Ollama model (qwen3:8b) — no API key required.

@@ -16,11 +16,18 @@ field) so the model returns schema-valid JSON directly -- no regex scraping.
 """
 
 import json
+import os
 import re
 from datetime import datetime, timezone
 
 from .llm import LLMClient, OllamaClient
 from .production_support import PipelineConfig, validate_paragraph
+
+
+# Run the L7 recall pass on every paragraph, even ones whose decomposition already met
+# the deterministic recall floor. Costs ~1 extra LLM call per paragraph; set it when
+# recall matters more than latency.
+ALWAYS_RECALL = os.getenv("STAGE1_ALWAYS_RECALL", "") not in ("", "0", "false", "False")
 
 
 def default_client() -> LLMClient:
@@ -677,8 +684,22 @@ def process_paragraph(
     units = decomposed.get("units", [])
     relations = decomposed.get("relations", [])
 
-    # L7 recall pass -- fold any misses back in as recovered units
-    recall = validate(paragraph, units, client)
+    # L7 recall pass -- fold any misses back in as recovered units.
+    #
+    # The recall floor is deterministic and free, so use it to decide whether the LLM
+    # call is worth making: a decomposition that already met its floor has no *known*
+    # gap, and on the gold suite the pass recovers nothing from those paragraphs. When
+    # the floor is short, the symbolic layer has positive evidence a clause was dropped
+    # and the call earns its keep. This skips roughly one call per paragraph on
+    # well-decomposed text without weakening the floor guarantee itself, which is
+    # enforced below via audit.recall_floor either way.
+    #
+    # Set STAGE1_ALWAYS_RECALL=1 to force the pass on every paragraph (the pre-0.2
+    # behaviour) if you are chasing maximum recall over latency.
+    if ALWAYS_RECALL or len(units) < recall_floor(paragraph):
+        recall = validate(paragraph, units, client)
+    else:
+        recall = {"missing": []}
     next_index = len(units) + 1
     recovered_ids = []
     for miss in recall.get("missing", []):

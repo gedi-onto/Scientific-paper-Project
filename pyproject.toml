@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "graphrag-stage1"
-version = "0.1.0"
+version = "0.2.0"
 description = "Ontology-driven knowledge-extraction pipeline: paragraphs to a typed, provenance-anchored Knowledge Artifact Graph."
 readme = "DESIGN.md"
 requires-python = ">=3.10"
@@ -52,8 +52,23 @@ dev = [
 packages = ["graphrag_stage1"]
 
 [tool.setuptools.package-data]
-# Ship the versioned IR JSON Schemas inside the wheel.
-graphrag_stage1 = ["schemas/*.json"]
+# Ship the versioned IR JSON Schemas, and the FOUNDATIONAL ontologies, inside the wheel.
+#
+# The ontology stack (IAO, CCO, RO, and the Stage 2/3 alignment + SHACL shapes) is ~3.7 MB,
+# identical for every user, and required for Stage 3 to do anything. Shipping it means
+# `pip install graphrag-stage1[ontology]` yields a working Stage 3 with nothing to fetch.
+#
+# The DOMAIN ontology is intentionally absent: it changes per scientific domain, it is the
+# user's choice, and it can dwarf the core (UBERON alone is 48 MB). Users pass their own
+# via `domain_ontology=`; the repo keeps examples under the top-level ontologies/Domain/.
+graphrag_stage1 = [
+    "schemas/*.json",
+    "ontologies/*.owl",
+    "ontologies/*.ttl",
+    "ontologies/*.md",
+    "ontologies/Relations/*",
+    "ontologies/Alignment/*",
+]
 
 [tool.pytest.ini_options]
 # Tests live at the repo root and import the installed/importable package.

@@ -186,17 +186,26 @@
   <div class="chap-rule"></div>
 
   <h3>1 · Install the library</h3>
-  <p>Pick the extras you need — they're additive:</p>
+  <p>Install straight from source control — the package name plus the extras you need
+  (they're additive):</p>
+  <pre><code>pip install "graphrag-stage1 @ git+https://github.com/&lt;you&gt;/&lt;repo&gt;"</code></pre>
   <table>
-    <tr><th>Command</th><th>Gives you</th></tr>
-    <tr><td><code>pip install graphrag-stage1</code></td><td>Stage 1 + Stage 2 (facts &amp; frames)</td></tr>
-    <tr><td><code>pip install "graphrag-stage1[ontology]"</code></td><td>+ Stage 3 ontology mapping</td></tr>
-    <tr><td><code>pip install "graphrag-stage1[validation]"</code></td><td>+ <code>validate()</code> output checking</td></tr>
-    <tr><td><code>pip install "graphrag-stage1[anthropic]"</code></td><td>+ built-in Claude client</td></tr>
-    <tr><td><code>pip install "graphrag-stage1[openai]"</code></td><td>+ built-in OpenAI client</td></tr>
+    <tr><th>Extra</th><th>Gives you</th></tr>
+    <tr><td><code>graphrag-stage1</code> (no extra)</td><td>Stage 1 + Stage 2 (facts &amp; frames). Only dependency is <code>requests</code>.</td></tr>
+    <tr><td><code>[ontology]</code></td><td>+ Stage 3 ontology mapping &amp; the Neptune/SHACL gate (rdflib, pyshacl)</td></tr>
+    <tr><td><code>[grounding]</code></td><td>+ entity grounding to real OBO term IDs (oaklib). <strong>Pair this with <code>[ontology]</code></strong> — see Chapter 06; without it Stage 3 types almost nothing.</td></tr>
+    <tr><td><code>[validation]</code></td><td>+ <code>validate()</code> output checking against the shipped JSON Schemas</td></tr>
+    <tr><td><code>[anthropic]</code></td><td>+ built-in Claude client</td></tr>
+    <tr><td><code>[openai]</code></td><td>+ built-in OpenAI client</td></tr>
   </table>
   <p>Most users want everything:</p>
-  <pre><code>pip install "graphrag-stage1[ontology,validation,anthropic]"</code></pre>
+  <pre><code>pip install "graphrag-stage1[ontology,grounding,validation,anthropic] @ git+https://github.com/&lt;you&gt;/&lt;repo&gt;"</code></pre>
+
+  <div class="callout good"><span class="h">The ontologies come with it</span>The foundational
+  stack — IAO, CCO (which also supplies BFO), RO, and the alignment + SHACL shapes — ships
+  <strong>inside the wheel</strong>. There is nothing to download, clone, or place on disk:
+  <code>[ontology]</code> gives you a working Stage 3 out of the box. The only ontology you
+  provide is your own <em>domain</em> file (Chapter 06).</div>
 
   <h3>2 · Give it access to your model</h3>
   <p>For the built-in clients, set the standard environment variable:</p>
@@ -339,24 +348,33 @@ client = OllamaClient(model="qwen3:8b")   # talks to a local Ollama server</code
   <div class="chap-num">Chapter 06</div>
   <h2 class="chap-title">Use your own ontology</h2>
   <div class="chap-rule"></div>
-  <p class="lead">Three foundational ontologies (BFO, IAO, CCO) are always loaded. You add
-  one domain ontology — the one that matches your papers.</p>
+  <p class="lead">The foundational ontologies ship <strong>inside the package</strong> and load
+  themselves. You supply exactly one thing: the domain ontology that matches your papers.</p>
 
   <h4>Where files live</h4>
-  <pre><code>ontologies/
-├── bfo.owl                     always loaded  (required)
-├── iao.owl                     always loaded  (required)
-├── CommonCoreOntologies*.ttl   always loaded  (required)
-├── Relations/  Alignment/      supporting files (leave as-is)
-└── Domain/&lt;your_ontology&gt;.owl   &larr; YOUR file goes here</code></pre>
+  <pre><code>graphrag_stage1/ontologies/        &larr; SHIPPED IN THE WHEEL, nothing to fetch
+├── iao.owl                          always loaded
+├── CommonCoreOntologiesMerged.ttl   always loaded (also supplies BFO)
+├── Relations/ro.owl                 relation vocabulary
+└── Alignment/                       pipeline&rarr;ontology bridge + SHACL shapes
 
-  <h4>Two ways to plug in your domain ontology</h4>
-  <pre><code># Option A — pass the path directly (easiest):
-results = analyze_paper(text, client=c, domain_ontology="/path/to/my_domain.owl")
+&lt;anywhere you like&gt;/my_domain.owl   &larr; YOUR file, passed explicitly</code></pre>
+  <div class="callout"><span class="h">Why BFO has no file of its own</span>CCO and IAO are both
+  built on BFO and republish its classes under the canonical <code>obo/BFO_*</code> IRIs, so BFO
+  arrives with them. A separate BFO file is worse than useless — a stale one names the same
+  concepts under <em>different</em> IRIs, which makes every upper-ontology term ambiguous.</div>
 
-# Option B — drop the file into ontologies/Domain/ and point at it:
-results = analyze_paper(text, client=c, domain_ontology="ontologies/Domain/my_domain.owl")</code></pre>
-  <p>You can also point at a <em>folder</em> of ontology files, not just one.</p>
+  <h4>Plug in your domain ontology</h4>
+  <pre><code># The core stack comes from the installed package. Just name your domain file:
+results = analyze_paper(text, client=c, domain_ontology="/path/to/my_domain.owl")</code></pre>
+  <p>You can point at a <em>folder</em> of ontology files, not just one. To load the core stack
+  from somewhere else (a pinned or patched copy), pass
+  <code>ontology_root="/path/to/your/ontologies"</code> — otherwise leave it alone and the
+  packaged copy is used.</p>
+
+  <div class="callout good"><span class="h">Why the domain ontology isn't bundled</span>It is the
+  one module that changes per scientific domain — your choice, not ours — and it can dwarf the
+  core: the whole foundational stack is ~3.7&nbsp;MB, while UBERON alone is 48&nbsp;MB.</div>
 
   <h4>What makes a good domain ontology</h4>
   <ul>
@@ -365,6 +383,43 @@ results = analyze_paper(text, client=c, domain_ontology="ontologies/Domain/my_do
     <li><strong>Human-readable labels</strong> on its classes and properties — that's what your facts get matched against.</li>
     <li>Ideally built on BFO (like CCO), so it stacks cleanly onto the core.</li>
   </ul>
+
+  <h4>Also pass a grounder — or almost nothing gets typed</h4>
+  <div class="callout"><span class="h">This is the most common way to get a disappointing graph</span>
+  Loading a domain ontology is only half the job. Your papers say <em>&ldquo;dendrobine&rdquo;</em>
+  and <em>&ldquo;COX-2&rdquo;</em>; your ontology has classes with formal labels. When an entity
+  isn't already a class in the loaded file, Stage 3 can only generalise it to a <em>true</em>
+  ancestor &mdash; and the honest true ancestor of an unrecognised thing is
+  <code>BFO:entity</code>, the root of the whole ontology. Everything &ldquo;maps&rdquo;, and
+  nothing means anything.</div>
+
+  <p>A grounder resolves mentions to real ontology term IDs <strong>lexically</strong> &mdash;
+  never by asking a model to recall an ID, because models hallucinate CURIEs and a lexical match
+  cannot. Measured on the 4 most interaction-dense paragraphs of a PMC paper, against INO:</p>
+
+  <table>
+    <tr><th>Stage 3 run</th><th>Entities given a real domain type</th></tr>
+    <tr><td>ontology only, no grounder</td><td><strong>0 of 10</strong> &mdash; every entity fell back to <code>BFO:entity</code></td></tr>
+    <tr><td>ontology + <code>OakGrounder()</code></td><td><strong>7 of 21 (33%)</strong> &mdash; real <code>CHEBI</code>, <code>GO</code>, <code>MONDO</code>, <code>PR</code>, <code>PW</code> classes</td></tr>
+  </table>
+
+  <pre><code>from graphrag_stage1.grounding import OakGrounder
+
+results = analyze_paper(
+    text, client=c,
+    domain_ontology="ontologies/Domain/my_domain.owl",
+    grounder=OakGrounder(cache_path=".grounding_cache.json"),  # &larr; add this
+)</code></pre>
+
+  <p>The grounder searches every OBO ontology at once over HTTP (no local database to download)
+  and caches to disk, so the network is hit <strong>once per distinct mention across all runs</strong>.
+  It is optional and fails soft: if <code>oaklib</code> isn't installed or the service is
+  unreachable, every lookup returns &ldquo;not found&rdquo; and you simply fall back to the
+  in-graph typing &mdash; grounding never crashes a run.</p>
+
+  <div class="callout good"><span class="h">Rule of thumb</span>The domain ontology supplies the
+  <em>frame</em> vocabulary (what kind of claim this is). The grounder supplies the <em>entity</em>
+  vocabulary (what the nouns actually are). You want both; they are not substitutes.</div>
 
   <div class="callout good"><span class="h">Plug-and-play</span>There are no hardcoded domain terms in the
   code — it reads the labels inside whatever ontology you load. Swap the file, and the mapping targets
@@ -413,6 +468,14 @@ print(meta["validated_triple_count"], "triples ->", meta["destination"])</code><
   <div class="chap-rule"></div>
   <p class="lead">Which dial matters depends entirely on whether your model endpoint can scale.</p>
 
+  <div class="callout good"><span class="h">What a real run looks like</span>All three stages,
+  from a <code>pip install</code>ed wheel, on the 4 most interaction-dense paragraphs of a real
+  PMC paper (qwen3:8b local, defaults, user-supplied INO domain ontology):<br><br>
+  <strong>36 facts &rarr; 36 frames &rarr; RDF in 105&nbsp;s</strong> (26&nbsp;s/paragraph),
+  0 errors, 4/4 paragraphs passing the Stage 1 + Stage 2 JSON Schemas, and 8 of 22 entities
+  given real domain types (<code>MONDO</code>, <code>PW</code>, <code>CL</code>, <code>GO</code>,
+  <code>PR</code>, <code>CHEBI</code>) rather than <code>BFO:entity</code> fallbacks.</div>
+
   <h4>On a hosted API: turn up the concurrency</h4>
   <p>Paragraphs are independent, so the library runs them in parallel. On an endpoint that
   scales, more concurrent calls really do finish sooner:</p>
@@ -425,6 +488,13 @@ print(meta["validated_triple_count"], "triples ->", meta["destination"])</code><
   <p>Set <code>max_concurrency</code> to your provider's safe concurrent-request budget. Too low
   is slow; too high gets you rate-limited. A ~50-paragraph paper lands in <strong>about a
   minute</strong>.</p>
+
+  <div class="callout"><span class="h">"Safe budget" is not a suggestion</span>This only works
+  for concurrency you are actually entitled to. Measured on a free Ollama Cloud tier:
+  <code>max_concurrency=4</code> completed cleanly, while <code>12</code> returned HTTP 429 on
+  <strong>7 of 12 paragraphs</strong> &mdash; and because each failure waits out the full backoff
+  first, the run was also <strong>3&times; slower per surviving paragraph</strong>. Past your quota
+  the formula above inverts: more concurrency, less throughput, fewer facts.</div>
 
   <h4>On a single local GPU: that formula stops working</h4>
   <p>Raising <code>max_concurrency</code> past a few does nothing. The GPU is not queueing your
@@ -462,13 +532,63 @@ print(meta["validated_triple_count"], "triples ->", meta["destination"])</code><
   <h4>What actually works: make fewer calls</h4>
   <table>
     <tr><th>Lever</th><th>How</th><th>Effect</th></tr>
-    <tr><td><strong>Batch the facts</strong> (biggest win)</td><td><code>stage2_batch_size=5</code></td><td>Frame 5 facts in one call instead of 5 calls. Measured <strong>1.75&times; faster and more accurate</strong> &mdash; seeing its sibling facts helps the model stay grounded, which kills the retries. Don't go past ~10.</td></tr>
+    <tr><td><strong>Batch the facts</strong> (biggest win)</td><td><code>stage2_batch_size=5</code> &mdash; <strong>now the default</strong></td><td>Frames 5 facts in one call instead of 5 calls. Measured <strong>1.75&times; faster and more accurate</strong> &mdash; seeing its sibling facts helps the model stay grounded, which kills the retries. On by default since 0.2; set <code>STAGE2_BATCH_SIZE=0</code> to go back. Don't go past ~10.</td></tr>
+    <tr><td><strong>Size the context window</strong> (see below)</td><td><code>OllamaClient(num_ctx=6144)</code> &mdash; <strong>now the default</strong></td><td>Batching needs room to write 5 frames. Too small and every batch truncates; too large and it thrashes your VRAM. Worth <strong>10&times;</strong> &mdash; the single biggest number in this chapter.</td></tr>
+    <tr><td><strong>Skip the recall pass when it can't help</strong></td><td>automatic since 0.2</td><td>The recall pass now runs only when the deterministic floor says a clause went missing, saving ~1 call per paragraph. <code>STAGE1_ALWAYS_RECALL=1</code> restores it everywhere.</td></tr>
     <tr><td><strong>Drop the retry pass</strong></td><td><code>STAGE2_MAX_RETRIES=0</code></td><td>Each reprocessed fact is a second full call. Costs you the auto-repair pass.</td></tr>
-    <tr><td><strong>Feed it fewer paragraphs</strong></td><td>Skip references, funding, acknowledgements</td><td>Fewer facts to frame. The cheapest win of all.</td></tr>
+    <tr><td><strong>Feed it fewer paragraphs</strong></td><td>automatic since 0.2 (<code>gate_noise=True</code>)</td><td>Keywords lines, supplementary-material DOIs and publisher notices are dropped before they cost a call. Narrow by design: ~5% of a real paper. It won't guess &mdash; figure captions and methods lines are content, so they go to the model.</td></tr>
   </table>
 
   <div class="callout"><span class="h">Don't bother</span>Shrinking or batching prompts. Reading
   the prompt is only ~3% of a Stage 2 call, so there is nothing there to win.</div>
+
+  <h4>The one number worth 10&times;: <code>num_ctx</code> &times; <code>OLLAMA_NUM_PARALLEL</code></h4>
+  <p>Ollama gives every model a 4096-token window by default, and allocates that window
+  <em>per parallel slot</em>. Both halves of that sentence bite:</p>
+  <ul>
+    <li><strong>Too small</strong> &mdash; a batch of 5 needs ~5&times;800 output tokens. Against a 4096
+    window every batch silently truncates into invalid JSON, falls back to the per-statement
+    path, and the run ends up <em>slower than not batching at all</em>.</li>
+    <li><strong>Too large</strong> &mdash; with <code>OLLAMA_NUM_PARALLEL=4</code>, a
+    <code>num_ctx</code> of 8192 reserves <strong>32K</strong> of KV cache, which thrashes VRAM
+    next to a 7.4&nbsp;GB model on a 16&nbsp;GB card.</li>
+  </ul>
+  <p>Measured on 4 real paragraphs (qwen3:8b, RTX 5080 16&nbsp;GB,
+  <code>OLLAMA_NUM_PARALLEL=4</code>, batch 5), changing <strong>only</strong> this value:</p>
+  <table>
+    <tr><th><code>num_ctx</code></th><th>Wall</th><th>Outcome</th></tr>
+    <tr><td>8192</td><td><strong>1026 s</strong></td><td>1 paragraph failed outright (thrashing)</td></tr>
+    <tr><td><strong>6144</strong> (default)</td><td><strong>101 s</strong></td><td>0 failures</td></tr>
+  </table>
+  <p>If you raise <code>num_ctx</code>, lower <code>OLLAMA_NUM_PARALLEL</code> to match your
+  VRAM &mdash; otherwise the headroom you bought for a bigger batch is exactly what thrashes.</p>
+
+  <h4>What a real paper actually costs</h4>
+  <p>With the 0.2 defaults, on 4 genuine 70&ndash;75-word paragraphs from a PMC paper:</p>
+  <table>
+    <tr><th>Setup</th><th>Per paragraph</th><th>80-paragraph paper</th><th>Errors</th></tr>
+    <tr><td><strong>Local qwen3:8b</strong>, <code>max_concurrency=4</code></td><td><strong>25 s</strong></td><td><strong>~33 min</strong></td><td>0</td></tr>
+    <tr><td>Ollama Cloud <code>gpt-oss:120b-cloud</code>, <code>max_concurrency=4</code></td><td>55 s</td><td>~73 min</td><td>0</td></tr>
+    <tr><td>Ollama Cloud, <code>max_concurrency=12</code></td><td>154 s</td><td>&mdash;</td><td><strong>7 of 12 lost to 429s</strong></td></tr>
+  </table>
+  <div class="callout"><span class="h">If a paper is taking hours</span>Check these two settings
+  before blaming your hardware. With batching off and a 4096 window &mdash; the pre-0.2 defaults
+  &mdash; that same 80-paragraph paper took <strong>~8 hours</strong>. The defaults were the
+  bottleneck, not the GPU.</div>
+
+  <h4>A bigger model is not a faster one</h4>
+  <p>This surprises people, so it is worth stating plainly: <strong>your laptop is probably
+  faster than the cloud.</strong> A 120B cloud model is 2.2&times; slower <em>per paragraph</em>
+  than an 8B on your own GPU, and reasoning models (<code>nemotron-*</code>) are slower still
+  because they spend tokens thinking before they answer. What a big model buys is a better
+  graph &mdash; on the run above, <code>gpt-oss:120b-cloud</code> produced 7 fully-mapped frames
+  against local's 3.</p>
+  <p>Speed comes from <strong>parallel capacity</strong>, which is a property of your quota or
+  your hardware &mdash; not of the model. And you only get the concurrency you are entitled to:
+  on a free Ollama Cloud tier, <code>max_concurrency=4</code> runs clean while 12 returns HTTP
+  429 on more than half the paper and each failure burns the full backoff first. Set
+  <code>max_concurrency</code> <em>to</em> your allowance. Past it you buy waiting and data loss,
+  not throughput.</p>
 </section>
 
 <!-- ============ 09 ============ -->
